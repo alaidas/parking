@@ -59,7 +59,7 @@
       fill: rgba(5, 10, 70, .58); stroke: var(--map-line); stroke-width: 2; rx: 6; transition: .15s;
     }
     .spot-car { fill: none; stroke: rgba(230, 240, 255, .88); stroke-width: 2; opacity: .88; }
-    .spot-label { fill: #d8e8ff; font-size: 11px; font-weight: 700; letter-spacing: .5px; pointer-events: none; }
+    .spot-label { fill: #d8e8ff; font-size: 15px; font-weight: 800; letter-spacing: .3px; pointer-events: none; }
     .spot-group { cursor: pointer; }
     .spot-group.free .spot-rect { fill: rgba(45, 209, 125, .14); stroke: rgba(124, 255, 189, .95); }
     .spot-group.booked .spot-rect { fill: rgba(255, 100, 128, .14); stroke: rgba(255, 155, 176, .95); }
@@ -69,6 +69,44 @@
     .chip { font-size: 12px; padding: 5px 8px; border-radius: 999px; border: 1px solid #31426f; color: var(--muted); }
     .kv { margin-top: 10px; display: grid; gap: 8px; font-size: 14px; }
     .kv div b { color: #cfe0ff; }
+    .map-mini {
+      margin-top: 10px;
+      border: 1px solid #2b3c66;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+    }
+    .map-mini-view {
+      position: relative;
+      height: 280px;
+      background-size: 260%;
+      background-repeat: no-repeat;
+      background-position: center;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    .map-mini-view.dragging { cursor: grabbing; }
+    .map-mini-dot {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      margin-left: -8px;
+      margin-top: -8px;
+      border-radius: 50%;
+      background: #ff3b3b;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 8px rgba(255, 59, 59, 0.22);
+    }
+    .map-mini-caption {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 6px 8px;
+      border-top: 1px solid #2b3c66;
+      background: #0f1833;
+    }
     .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
     table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
     th, td { padding: 10px; border-bottom: 1px solid #22335f; text-align: left; }
@@ -149,6 +187,12 @@
         <div class="title">Space Details</div>
         <div class="muted" id="spotHint">Select a spot from the map</div>
         <div class="kv" id="details"></div>
+        <div class="map-mini" id="mapMini">
+          <div class="map-mini-view" id="mapMiniView">
+            <div class="map-mini-dot"></div>
+          </div>
+          <div class="map-mini-caption" id="mapMiniCaption"></div>
+        </div>
         <div class="actions" id="actions"></div>
       </div>
     </div>
@@ -194,28 +238,40 @@
       '1': { name: 'Floor 1', spots: buildFloor1() },
       '2': { name: 'Floor 2', spots: buildFloor2() }
     };
+    const floorMaps = {
+      '1': 'https://i.ibb.co/RY9KTGm/parking-Outside.png',
+      '2': 'https://i.ibb.co/GkBQhfP/parking-Minus-Two.png'
+    };
+
+    function toId(n) {
+      return String(n).padStart(3, '0');
+    }
 
     function buildFloor1() {
       const out = [];
-      for (let i = 0; i < 13; i++) out.push({ id: `F1-A${String(i + 1).padStart(2, '0')}`, x: 18 + i * 93, y: 160, w: 70, h: 170, dir: 'down' });
-      for (let i = 0; i < 7; i++) out.push({ id: `F1-A${String(13 + i + 1).padStart(2, '0')}`, x: 550 + i * 88, y: 485, w: 66, h: 165, dir: 'up' });
+      for (let i = 0; i < 13; i++) out.push({ id: toId(i), x: 18 + i * 93, y: 160, w: 70, h: 170, dir: 'down' });
+      for (let i = 0; i < 7; i++) out.push({ id: toId(13 + i), x: 550 + i * 88, y: 485, w: 66, h: 165, dir: 'up' });
       return out;
     }
 
     function buildFloor2() {
       const out = [];
-      for (let i = 0; i < 5; i++) out.push({ id: `F2-B${String(i + 1).padStart(2, '0')}`, x: 170 + i * 95, y: 175, w: 72, h: 175, dir: 'down' });
-      for (let i = 0; i < 5; i++) out.push({ id: `F2-B${String(i + 6).padStart(2, '0')}`, x: 610 + i * 95, y: 470, w: 72, h: 175, dir: 'up' });
+      for (let i = 0; i < 5; i++) out.push({ id: toId(20 + i), x: 170 + i * 95, y: 175, w: 72, h: 175, dir: 'down' });
+      for (let i = 0; i < 5; i++) out.push({ id: toId(25 + i), x: 610 + i * 95, y: 470, w: 72, h: 175, dir: 'up' });
       return out;
     }
 
     const bookings = [
-      { floor: '1', spotId: 'F1-A03', user: 'Jonas', start: offsetH(-3), end: offsetH(36) },
-      { floor: '1', spotId: 'F1-A12', user: 'Milda', start: offsetH(1), end: offsetH(49) },
-      { floor: '2', spotId: 'F2-B02', user: 'Admin', start: offsetH(-2), end: offsetH(8) }
+      { floor: '1', spotId: '003', user: 'Jonas', start: offsetH(-3), end: offsetH(36) },
+      { floor: '1', spotId: '012', user: 'Milda', start: offsetH(1), end: offsetH(49) },
+      { floor: '2', spotId: '021', user: 'Admin', start: offsetH(-2), end: offsetH(8) }
     ];
 
     let selectedSpot = null;
+    let miniBaseX = 50;
+    let miniBaseY = 50;
+    let miniPanX = 0;
+    let miniPanY = 0;
 
     function currentFloor() { return document.getElementById('floorSelect').value; }
     function currentSpots() { return floors[currentFloor()].spots; }
@@ -278,15 +334,17 @@
         const state = statusClass(b);
         const g = createSvg('g', { class: `spot-group ${state} ${selectedSpot === s.id ? 'selected' : ''}` });
 
-        const rect = createSvg('rect', { class: 'spot-rect', x: s.x, y: s.y, width: s.w, height: s.h, rx: 5 });
-        const car = createSvg('rect', { class: 'spot-car', x: s.x + 12, y: s.y + 10, width: s.w - 24, height: s.h - 20, rx: 16 });
-        const mid = createSvg('line', { class: 'spot-car', x1: s.x + s.w / 2, y1: s.y + 25, x2: s.x + s.w / 2, y2: s.y + s.h - 25 });
-        const wind1 = createSvg('line', { class: 'spot-car', x1: s.x + 18, y1: s.y + 42, x2: s.x + s.w - 18, y2: s.y + 42 });
-        const wind2 = createSvg('line', { class: 'spot-car', x1: s.x + 18, y1: s.y + s.h - 42, x2: s.x + s.w - 18, y2: s.y + s.h - 42 });
-        const label = createSvg('text', { class: 'spot-label', x: s.x + 6, y: s.dir === 'down' ? s.y - 8 : s.y + s.h + 14 });
+        const rect = createSvg('rect', { class: 'spot-rect', x: s.x, y: s.y, width: s.w, height: s.h, rx: 7 });
+        const label = createSvg('text', {
+          class: 'spot-label',
+          x: s.x + s.w / 2,
+          y: s.y + s.h / 2,
+          'text-anchor': 'middle',
+          'dominant-baseline': 'middle'
+        });
         label.textContent = s.id;
 
-        g.append(rect, car, mid, wind1, wind2, label);
+        g.append(rect, label);
         g.addEventListener('click', () => { selectedSpot = s.id; render(); });
         layer.appendChild(g);
       }
@@ -302,12 +360,16 @@
       const hint = document.getElementById('spotHint');
       const details = document.getElementById('details');
       const actions = document.getElementById('actions');
+      const mapMini = document.getElementById('mapMini');
+      const mapMiniView = document.getElementById('mapMiniView');
+      const mapMiniCaption = document.getElementById('mapMiniCaption');
       details.innerHTML = ''; actions.innerHTML = '';
+      mapMini.style.display = 'none';
       if (!selectedSpot) return;
 
       const floor = currentFloor();
-      const spotExists = currentSpots().some(s => s.id === selectedSpot);
-      if (!spotExists) {
+      const spot = currentSpots().find(s => s.id === selectedSpot);
+      if (!spot) {
         selectedSpot = null;
         hint.textContent = 'Select a spot from the map';
         return;
@@ -324,6 +386,15 @@
       }
       details.innerHTML = rows.join('');
 
+      miniBaseX = ((spot.x + spot.w / 2) / 1240) * 100;
+      miniBaseY = ((spot.y + spot.h / 2) / 720) * 100;
+      miniPanX = 0;
+      miniPanY = 0;
+      mapMiniView.style.backgroundImage = `url(${floorMaps[floor]})`;
+      updateMiniMapPosition();
+      mapMiniCaption.textContent = `Selected place location on ${floors[floor].name} (drag to explore)`;
+      mapMini.style.display = 'block';
+
       const bookBtn = document.createElement('button');
       bookBtn.textContent = 'Book this spot'; bookBtn.className = 'btn-primary';
       bookBtn.disabled = !!b; bookBtn.onclick = openBookingModal; actions.appendChild(bookBtn);
@@ -336,6 +407,13 @@
         render();
       };
       actions.appendChild(releaseBtn);
+    }
+
+    function updateMiniMapPosition() {
+      const mapMiniView = document.getElementById('mapMiniView');
+      const x = Math.max(0, Math.min(100, miniBaseX + miniPanX));
+      const y = Math.max(0, Math.min(100, miniBaseY + miniPanY));
+      mapMiniView.style.backgroundPosition = `${x}% ${y}%`;
     }
 
     function canRelease(b) {
@@ -397,6 +475,57 @@
       document.getElementById(id).addEventListener('input', render);
       document.getElementById(id).addEventListener('change', render);
     });
+
+    (function initMiniMapDrag() {
+      const view = document.getElementById('mapMiniView');
+      let dragging = false;
+      let startX = 0;
+      let startY = 0;
+      let startPanX = 0;
+      let startPanY = 0;
+
+      const pointerDown = (clientX, clientY) => {
+        dragging = true;
+        view.classList.add('dragging');
+        startX = clientX;
+        startY = clientY;
+        startPanX = miniPanX;
+        startPanY = miniPanY;
+      };
+
+      const pointerMove = (clientX, clientY) => {
+        if (!dragging) return;
+        const rect = view.getBoundingClientRect();
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+        miniPanX = startPanX - (dx / rect.width) * 100;
+        miniPanY = startPanY - (dy / rect.height) * 100;
+        updateMiniMapPosition();
+      };
+
+      const pointerUp = () => {
+        dragging = false;
+        view.classList.remove('dragging');
+      };
+
+      view.addEventListener('mousedown', (e) => pointerDown(e.clientX, e.clientY));
+      window.addEventListener('mousemove', (e) => pointerMove(e.clientX, e.clientY));
+      window.addEventListener('mouseup', pointerUp);
+
+      view.addEventListener('touchstart', (e) => {
+        const t = e.touches[0];
+        if (!t) return;
+        pointerDown(t.clientX, t.clientY);
+      }, { passive: true });
+
+      view.addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        if (!t) return;
+        pointerMove(t.clientX, t.clientY);
+      }, { passive: true });
+
+      window.addEventListener('touchend', pointerUp, { passive: true });
+    })();
 
     setInterval(nowTick, 30_000);
     nowTick();
