@@ -8,21 +8,14 @@
     :root {
       --bg: #0a0f1f;
       --panel: #101933;
-      --panel-2: #0c1430;
       --border: #26365f;
       --text: #e7ecff;
       --muted: #94a5cf;
       --accent: #64d9ff;
       --accent-2: #7f82ff;
-      --ok: #2dd17d;
-      --warn: #f1ba51;
-      --bad: #ff6480;
-      --map-bg: #1c1f8f;
-      --map-lane: #3d3f8f;
       --map-line: #e9f4ff;
       --map-arrow: #47f0d5;
     }
-
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -30,142 +23,65 @@
       color: var(--text);
       background: radial-gradient(1000px 500px at 18% -12%, #1a2b61 0%, var(--bg) 55%), var(--bg);
     }
-
     .app { max-width: 1320px; margin: 22px auto; padding: 0 16px; }
-
     .header, .panel {
       background: linear-gradient(180deg, #142145 0%, var(--panel) 100%);
       border: 1px solid var(--border);
       border-radius: 14px;
       box-shadow: 0 8px 24px rgba(0,0,0,.25);
     }
-
     .header {
-      padding: 14px 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 14px;
+      padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 14px;
     }
-
     .title { font-weight: 700; letter-spacing: .2px; }
     .muted { color: var(--muted); font-size: 13px; }
-
     .toolbar {
-      margin-bottom: 14px;
-      padding: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
+      margin-bottom: 14px; padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
     }
-
     input, select, button {
-      background: #0f1833;
-      border: 1px solid #2b3a63;
-      color: var(--text);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 14px;
+      background: #0f1833; border: 1px solid #2b3a63; color: var(--text); border-radius: 10px;
+      padding: 10px 12px; font-size: 14px;
     }
-
     button { cursor: pointer; }
     .btn-primary {
       background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      border: none;
-      color: #041027;
-      font-weight: 700;
+      border: none; color: #041027; font-weight: 700;
     }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 2.1fr 1fr;
-      gap: 14px;
-    }
-
+    .layout { display: grid; grid-template-columns: 2.1fr 1fr; gap: 14px; }
     .panel { padding: 14px; }
-
     .map-wrap {
-      margin-top: 12px;
-      border: 1px solid #30406a;
-      border-radius: 12px;
-      overflow: hidden;
-      background: #111742;
+      margin-top: 12px; border: 1px solid #30406a; border-radius: 12px; overflow: hidden; background: #111742;
     }
-
     svg { width: 100%; height: auto; display: block; }
-
-    .lot-title {
-      fill: #eef6ff;
-      font-size: 46px;
-      letter-spacing: 2px;
-      font-weight: 300;
-      opacity: .95;
-    }
-
+    .lot-title { fill: #eef6ff; font-size: 46px; letter-spacing: 2px; font-weight: 300; opacity: .95; }
     .spot-rect {
-      fill: rgba(5, 10, 70, .58);
-      stroke: var(--map-line);
-      stroke-width: 2;
-      rx: 6;
-      transition: .15s;
+      fill: rgba(5, 10, 70, .58); stroke: var(--map-line); stroke-width: 2; rx: 6; transition: .15s;
     }
-
-    .spot-car {
-      fill: none;
-      stroke: rgba(230, 240, 255, .88);
-      stroke-width: 2;
-      opacity: .88;
-    }
-
-    .spot-label {
-      fill: #d8e8ff;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .5px;
-      pointer-events: none;
-    }
-
+    .spot-car { fill: none; stroke: rgba(230, 240, 255, .88); stroke-width: 2; opacity: .88; }
+    .spot-label { fill: #d8e8ff; font-size: 11px; font-weight: 700; letter-spacing: .5px; pointer-events: none; }
     .spot-group { cursor: pointer; }
     .spot-group.free .spot-rect { fill: rgba(45, 209, 125, .14); stroke: rgba(124, 255, 189, .95); }
     .spot-group.booked .spot-rect { fill: rgba(255, 100, 128, .14); stroke: rgba(255, 155, 176, .95); }
     .spot-group.soon .spot-rect { fill: rgba(241, 186, 81, .14); stroke: rgba(255, 221, 150, .95); }
     .spot-group.selected .spot-rect { stroke: var(--accent); stroke-width: 3; }
-
     .chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     .chip { font-size: 12px; padding: 5px 8px; border-radius: 999px; border: 1px solid #31426f; color: var(--muted); }
-
     .kv { margin-top: 10px; display: grid; gap: 8px; font-size: 14px; }
     .kv div b { color: #cfe0ff; }
-
     .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-
     table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
     th, td { padding: 10px; border-bottom: 1px solid #22335f; text-align: left; }
     th { color: #b7c5eb; font-weight: 600; }
-
     .overlay {
-      position: fixed; inset: 0;
-      background: rgba(5, 8, 18, .7);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      z-index: 10;
+      position: fixed; inset: 0; background: rgba(5, 8, 18, .7); display: none;
+      align-items: center; justify-content: center; padding: 16px; z-index: 10;
     }
-
     .modal {
-      width: 100%; max-width: 520px;
-      background: #121b35;
-      border: 1px solid #30406b;
-      border-radius: 14px;
-      padding: 16px;
+      width: 100%; max-width: 520px; background: #121b35; border: 1px solid #30406b; border-radius: 14px; padding: 16px;
     }
-
     .modal h3 { margin: 0 0 12px; }
     .row { display: grid; gap: 8px; margin-bottom: 10px; }
-
     @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -174,12 +90,16 @@
     <div class="header">
       <div>
         <div class="title">Parking Booking Dashboard <span class="muted">POC Mock</span></div>
-        <div class="muted">20 spaces · realistic floor plan view</div>
+        <div class="muted" id="floorStats">Floor 1 · 20 spaces</div>
       </div>
       <div class="muted" id="clock"></div>
     </div>
 
     <div class="panel toolbar">
+      <select id="floorSelect">
+        <option value="1">Floor 1 (20 spaces)</option>
+        <option value="2">Floor 2 (10 spaces)</option>
+      </select>
       <input id="currentUser" placeholder="Your name (e.g. Aidas)" value="Aidas" />
       <label class="muted"><input type="checkbox" id="isAdmin" /> Admin mode</label>
       <label class="muted"><input type="checkbox" id="onlyFree" /> Only free</label>
@@ -202,20 +122,15 @@
             </defs>
 
             <rect x="0" y="0" width="1240" height="720" fill="url(#lotBg)"/>
-
-            <rect x="0" y="285" width="1240" height="150" fill="var(--map-lane)" opacity="0.95"/>
-            <rect x="0" y="0" width="1240" height="2" fill="var(--map-line)" opacity=".55"/>
-            <rect x="0" y="720" width="1240" height="2" fill="var(--map-line)" opacity=".55"/>
-
+            <rect x="0" y="285" width="1240" height="150" fill="#3d3f8f" opacity="0.95"/>
             <line x1="0" y1="130" x2="1240" y2="130" stroke="var(--map-line)" stroke-width="2" opacity=".7"/>
             <line x1="0" y1="458" x2="1240" y2="458" stroke="var(--map-line)" stroke-width="2" opacity=".7"/>
 
-            <text x="920" y="75" class="lot-title">PARKING</text>
-            <text x="920" y="120" class="lot-title">LOT DESIGN</text>
+            <text x="920" y="75" class="lot-title" id="lotTitleA">PARKING</text>
+            <text x="920" y="120" class="lot-title" id="lotTitleB">FLOOR 1</text>
 
             <path d="M 740 335 L 890 335" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
             <path d="M 740 335 L 775 315 M 740 335 L 775 355" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
-
             <path d="M 300 330 C 260 330, 240 350, 240 390" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
             <path d="M 240 390 L 220 370 M 240 390 L 260 370" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
 
@@ -239,7 +154,7 @@
     </div>
 
     <div class="panel" style="margin-top:14px;">
-      <div class="title">Upcoming / Active Bookings</div>
+      <div class="title">Upcoming / Active Bookings (selected floor)</div>
       <table>
         <thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
         <tbody id="bookingRows"></tbody>
@@ -261,13 +176,8 @@
       <div class="row">
         <label class="muted">Duration</label>
         <select id="durationDays">
-          <option value="1">1 day</option>
-          <option value="2">2 days</option>
-          <option value="3">3 days</option>
-          <option value="4">4 days</option>
-          <option value="5">5 days</option>
-          <option value="6">6 days</option>
-          <option value="7">7 days</option>
+          <option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option>
+          <option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option>
         </select>
       </div>
       <div class="actions">
@@ -278,31 +188,37 @@
   </div>
 
   <script>
-    function offsetH(h) {
-      return new Date(Date.now() + h * 3600_000).toISOString();
+    function offsetH(h) { return new Date(Date.now() + h * 3600_000).toISOString(); }
+
+    const floors = {
+      '1': { name: 'Floor 1', spots: buildFloor1() },
+      '2': { name: 'Floor 2', spots: buildFloor2() }
+    };
+
+    function buildFloor1() {
+      const out = [];
+      for (let i = 0; i < 13; i++) out.push({ id: `F1-A${String(i + 1).padStart(2, '0')}`, x: 18 + i * 93, y: 160, w: 70, h: 170, dir: 'down' });
+      for (let i = 0; i < 7; i++) out.push({ id: `F1-A${String(13 + i + 1).padStart(2, '0')}`, x: 550 + i * 88, y: 485, w: 66, h: 165, dir: 'up' });
+      return out;
     }
 
-    const spotsLayout = [];
-    const topCount = 13;
-    const bottomCount = 7;
-
-    for (let i = 0; i < topCount; i++) {
-      const x = 18 + i * 93;
-      spotsLayout.push({ id: `A${String(i + 1).padStart(2, '0')}`, x, y: 160, w: 70, h: 170, dir: 'down' });
-    }
-
-    for (let i = 0; i < bottomCount; i++) {
-      const x = 550 + i * 88;
-      spotsLayout.push({ id: `A${String(topCount + i + 1).padStart(2, '0')}`, x, y: 485, w: 66, h: 165, dir: 'up' });
+    function buildFloor2() {
+      const out = [];
+      for (let i = 0; i < 5; i++) out.push({ id: `F2-B${String(i + 1).padStart(2, '0')}`, x: 170 + i * 95, y: 175, w: 72, h: 175, dir: 'down' });
+      for (let i = 0; i < 5; i++) out.push({ id: `F2-B${String(i + 6).padStart(2, '0')}`, x: 610 + i * 95, y: 470, w: 72, h: 175, dir: 'up' });
+      return out;
     }
 
     const bookings = [
-      { spotId: 'A03', user: 'Jonas', start: offsetH(-3), end: offsetH(36) },
-      { spotId: 'A12', user: 'Milda', start: offsetH(1), end: offsetH(49) },
-      { spotId: 'A17', user: 'Admin', start: offsetH(-20), end: offsetH(4) }
+      { floor: '1', spotId: 'F1-A03', user: 'Jonas', start: offsetH(-3), end: offsetH(36) },
+      { floor: '1', spotId: 'F1-A12', user: 'Milda', start: offsetH(1), end: offsetH(49) },
+      { floor: '2', spotId: 'F2-B02', user: 'Admin', start: offsetH(-2), end: offsetH(8) }
     ];
 
     let selectedSpot = null;
+
+    function currentFloor() { return document.getElementById('floorSelect').value; }
+    function currentSpots() { return floors[currentFloor()].spots; }
 
     function nowTick() {
       document.getElementById('clock').textContent = new Date().toLocaleString();
@@ -312,31 +228,28 @@
 
     function releaseExpired() {
       const now = Date.now();
-      for (let i = bookings.length - 1; i >= 0; i--) {
-        if (new Date(bookings[i].end).getTime() <= now) bookings.splice(i, 1);
-      }
+      for (let i = bookings.length - 1; i >= 0; i--) if (new Date(bookings[i].end).getTime() <= now) bookings.splice(i, 1);
     }
 
-    function activeBookingFor(spotId) {
+    function activeBookingFor(spotId, floor) {
       const now = Date.now();
-      return bookings.find(b => b.spotId === spotId && new Date(b.start).getTime() <= now && new Date(b.end).getTime() > now)
-          || bookings.find(b => b.spotId === spotId && new Date(b.end).getTime() > now);
+      return bookings.find(b => b.floor === floor && b.spotId === spotId && new Date(b.start).getTime() <= now && new Date(b.end).getTime() > now)
+          || bookings.find(b => b.floor === floor && b.spotId === spotId && new Date(b.end).getTime() > now);
     }
 
     function statusClass(b) {
       if (!b) return 'free';
       const hoursLeft = (new Date(b.end).getTime() - Date.now()) / 3600_000;
-      if (hoursLeft <= 12) return 'soon';
-      return 'booked';
+      return hoursLeft <= 12 ? 'soon' : 'booked';
     }
 
     function getFilteredIds() {
       const onlyFree = document.getElementById('onlyFree').checked;
       const search = document.getElementById('search').value.trim().toLowerCase();
+      const floor = currentFloor();
       const ids = new Set();
-
-      for (const s of spotsLayout) {
-        const b = activeBookingFor(s.id);
+      for (const s of currentSpots()) {
+        const b = activeBookingFor(s.id, floor);
         if (onlyFree && b) continue;
         if (search && (!b || !b.user.toLowerCase().includes(search))) continue;
         ids.add(s.id);
@@ -345,6 +258,9 @@
     }
 
     function render() {
+      const floor = currentFloor();
+      document.getElementById('lotTitleB').textContent = `FLOOR ${floor}`;
+      document.getElementById('floorStats').textContent = `${floors[floor].name} · ${floors[floor].spots.length} spaces`;
       renderMap();
       renderDetails();
       renderTable();
@@ -353,51 +269,25 @@
     function renderMap() {
       const layer = document.getElementById('spotLayer');
       const visible = getFilteredIds();
+      const floor = currentFloor();
       layer.innerHTML = '';
 
-      for (const s of spotsLayout) {
+      for (const s of currentSpots()) {
         if (!visible.has(s.id)) continue;
-
-        const b = activeBookingFor(s.id);
+        const b = activeBookingFor(s.id, floor);
         const state = statusClass(b);
-
         const g = createSvg('g', { class: `spot-group ${state} ${selectedSpot === s.id ? 'selected' : ''}` });
-        g.dataset.spotId = s.id;
 
-        const rect = createSvg('rect', {
-          class: 'spot-rect',
-          x: s.x, y: s.y, width: s.w, height: s.h, rx: 5
-        });
-
-        const car = createSvg('rect', {
-          class: 'spot-car',
-          x: s.x + 12, y: s.y + 10, width: s.w - 24, height: s.h - 20, rx: 16
-        });
-
-        const mid = createSvg('line', {
-          class: 'spot-car',
-          x1: s.x + s.w / 2, y1: s.y + 25, x2: s.x + s.w / 2, y2: s.y + s.h - 25
-        });
-
-        const wind1 = createSvg('line', {
-          class: 'spot-car',
-          x1: s.x + 18, y1: s.y + 42, x2: s.x + s.w - 18, y2: s.y + 42
-        });
-        const wind2 = createSvg('line', {
-          class: 'spot-car',
-          x1: s.x + 18, y1: s.y + s.h - 42, x2: s.x + s.w - 18, y2: s.y + s.h - 42
-        });
-
-        const label = createSvg('text', {
-          class: 'spot-label',
-          x: s.x + 6,
-          y: s.dir === 'down' ? s.y - 8 : s.y + s.h + 14
-        });
+        const rect = createSvg('rect', { class: 'spot-rect', x: s.x, y: s.y, width: s.w, height: s.h, rx: 5 });
+        const car = createSvg('rect', { class: 'spot-car', x: s.x + 12, y: s.y + 10, width: s.w - 24, height: s.h - 20, rx: 16 });
+        const mid = createSvg('line', { class: 'spot-car', x1: s.x + s.w / 2, y1: s.y + 25, x2: s.x + s.w / 2, y2: s.y + s.h - 25 });
+        const wind1 = createSvg('line', { class: 'spot-car', x1: s.x + 18, y1: s.y + 42, x2: s.x + s.w - 18, y2: s.y + 42 });
+        const wind2 = createSvg('line', { class: 'spot-car', x1: s.x + 18, y1: s.y + s.h - 42, x2: s.x + s.w - 18, y2: s.y + s.h - 42 });
+        const label = createSvg('text', { class: 'spot-label', x: s.x + 6, y: s.dir === 'down' ? s.y - 8 : s.y + s.h + 14 });
         label.textContent = s.id;
 
         g.append(rect, car, mid, wind1, wind2, label);
         g.addEventListener('click', () => { selectedSpot = s.id; render(); });
-
         layer.appendChild(g);
       }
     }
@@ -412,16 +302,21 @@
       const hint = document.getElementById('spotHint');
       const details = document.getElementById('details');
       const actions = document.getElementById('actions');
-      details.innerHTML = '';
-      actions.innerHTML = '';
-
+      details.innerHTML = ''; actions.innerHTML = '';
       if (!selectedSpot) return;
 
-      const b = activeBookingFor(selectedSpot);
-      hint.textContent = `Spot ${selectedSpot}`;
+      const floor = currentFloor();
+      const spotExists = currentSpots().some(s => s.id === selectedSpot);
+      if (!spotExists) {
+        selectedSpot = null;
+        hint.textContent = 'Select a spot from the map';
+        return;
+      }
 
-      const rows = [];
-      rows.push(`<div><b>Status:</b> ${b ? 'BOOKED' : 'FREE'}</div>`);
+      const b = activeBookingFor(selectedSpot, floor);
+      hint.textContent = `${floors[floor].name} · Spot ${selectedSpot}`;
+
+      const rows = [`<div><b>Status:</b> ${b ? 'BOOKED' : 'FREE'}</div>`];
       if (b) {
         rows.push(`<div><b>User:</b> ${b.user}</div>`);
         rows.push(`<div><b>Start:</b> ${new Date(b.start).toLocaleString()}</div>`);
@@ -430,17 +325,13 @@
       details.innerHTML = rows.join('');
 
       const bookBtn = document.createElement('button');
-      bookBtn.textContent = 'Book this spot';
-      bookBtn.className = 'btn-primary';
-      bookBtn.disabled = !!b;
-      bookBtn.onclick = openBookingModal;
-      actions.appendChild(bookBtn);
+      bookBtn.textContent = 'Book this spot'; bookBtn.className = 'btn-primary';
+      bookBtn.disabled = !!b; bookBtn.onclick = openBookingModal; actions.appendChild(bookBtn);
 
       const releaseBtn = document.createElement('button');
-      releaseBtn.textContent = 'Release';
-      releaseBtn.disabled = !canRelease(b);
+      releaseBtn.textContent = 'Release'; releaseBtn.disabled = !canRelease(b);
       releaseBtn.onclick = () => {
-        const idx = bookings.findIndex(x => x.spotId === selectedSpot && x.end === b.end);
+        const idx = bookings.findIndex(x => x.floor === floor && x.spotId === selectedSpot && x.end === b.end);
         if (idx >= 0) bookings.splice(idx, 1);
         render();
       };
@@ -450,24 +341,17 @@
     function canRelease(b) {
       if (!b) return false;
       const me = document.getElementById('currentUser').value.trim().toLowerCase();
-      const isAdmin = document.getElementById('isAdmin').checked;
-      if (isAdmin) return true;
+      if (document.getElementById('isAdmin').checked) return true;
       return b.user.trim().toLowerCase() === me;
     }
 
     function renderTable() {
       const rows = document.getElementById('bookingRows');
-      const sorted = [...bookings].sort((a, b) => new Date(a.start) - new Date(b.start));
+      const floor = currentFloor();
+      const sorted = bookings.filter(b => b.floor === floor).sort((a, b) => new Date(a.start) - new Date(b.start));
       rows.innerHTML = sorted.map(b => {
-        const now = Date.now();
-        const status = new Date(b.start).getTime() > now ? 'Upcoming' : 'Active';
-        return `<tr>
-          <td>${b.spotId}</td>
-          <td>${b.user}</td>
-          <td>${new Date(b.start).toLocaleString()}</td>
-          <td>${new Date(b.end).toLocaleString()}</td>
-          <td>${status}</td>
-        </tr>`;
+        const status = new Date(b.start).getTime() > Date.now() ? 'Upcoming' : 'Active';
+        return `<tr><td>${b.spotId}</td><td>${b.user}</td><td>${new Date(b.start).toLocaleString()}</td><td>${new Date(b.end).toLocaleString()}</td><td>${status}</td></tr>`;
       }).join('') || `<tr><td colspan="5" class="muted">No bookings</td></tr>`;
     }
 
@@ -475,40 +359,39 @@
       if (!selectedSpot) return;
       document.getElementById('bookingModal').style.display = 'flex';
       document.getElementById('modalSpot').textContent = selectedSpot;
-      const me = document.getElementById('currentUser').value.trim() || 'Unknown';
-      document.getElementById('bookedBy').value = me;
-      const d = new Date();
-      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      document.getElementById('bookedBy').value = document.getElementById('currentUser').value.trim() || 'Unknown';
+      const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
       document.getElementById('startAt').value = d.toISOString().slice(0,16);
       document.getElementById('durationDays').value = '1';
     }
 
-    function closeBookingModal() {
-      document.getElementById('bookingModal').style.display = 'none';
-    }
+    function closeBookingModal() { document.getElementById('bookingModal').style.display = 'none'; }
 
     document.getElementById('saveBooking').onclick = () => {
+      const floor = currentFloor();
       const user = document.getElementById('bookedBy').value.trim();
       const start = new Date(document.getElementById('startAt').value);
       const days = Number(document.getElementById('durationDays').value);
-      if (!user || !start || Number.isNaN(start.getTime()) || days < 1 || days > 7) return;
-      if (activeBookingFor(selectedSpot)) return alert('Spot is already booked');
+      if (!user || Number.isNaN(start.getTime()) || days < 1 || days > 7) return;
+      if (activeBookingFor(selectedSpot, floor)) return alert('Spot is already booked');
       const end = new Date(start.getTime() + days * 24 * 3600_000);
-      bookings.push({ spotId: selectedSpot, user, start: start.toISOString(), end: end.toISOString() });
-      closeBookingModal();
-      render();
+      bookings.push({ floor, spotId: selectedSpot, user, start: start.toISOString(), end: end.toISOString() });
+      closeBookingModal(); render();
     };
 
     document.getElementById('cancelBooking').onclick = closeBookingModal;
-    document.getElementById('bookingModal').onclick = (e) => {
-      if (e.target.id === 'bookingModal') closeBookingModal();
-    };
+    document.getElementById('bookingModal').onclick = (e) => { if (e.target.id === 'bookingModal') closeBookingModal(); };
 
     document.getElementById('clearFilters').onclick = () => {
       document.getElementById('onlyFree').checked = false;
       document.getElementById('search').value = '';
       render();
     };
+
+    document.getElementById('floorSelect').addEventListener('change', () => {
+      selectedSpot = null;
+      render();
+    });
 
     ['onlyFree','search','currentUser','isAdmin'].forEach(id => {
       document.getElementById(id).addEventListener('input', render);
