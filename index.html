@@ -3,242 +3,403 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Parking Booking Dashboard (Real Map Mock)</title>
+  <title>Parking Booking Dashboard (Mock)</title>
   <style>
-    :root { --bg:#0a0f1f; --panel:#101933; --border:#26365f; --text:#e7ecff; --muted:#94a5cf; --accent:#64d9ff; --accent2:#7f82ff; }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,Arial;background:radial-gradient(1000px 500px at 18% -12%,#1a2b61 0%,var(--bg) 55%),var(--bg);color:var(--text)}
-    .app{max-width:1320px;margin:20px auto;padding:0 16px}
-    .panel,.header{background:linear-gradient(180deg,#142145 0%,var(--panel) 100%);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-    .header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-    .title{font-weight:700}.muted{color:var(--muted);font-size:13px}
-    .toolbar{display:flex;flex-wrap:wrap;gap:10px;padding:12px;margin-bottom:14px}
-    input,select,button{background:#0f1833;border:1px solid #2b3a63;color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px}
-    .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#031028;font-weight:700;cursor:pointer}
-    .layout{display:grid;grid-template-columns:2.1fr 1fr;gap:14px}
-    .panel{padding:14px}
-    .map-wrap{margin-top:10px;border:1px solid #30406a;border-radius:12px;overflow:hidden;position:relative;background:#0e1430}
-    .map-img{width:100%;display:block}
-    .spots-layer{position:absolute;inset:0}
-    .spot{position:absolute;border:2px solid #d9ecff;border-radius:6px;background:rgba(6,14,60,.42);cursor:pointer;color:#d8e8ff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
-    .spot.free{border-color:#7cffbd;background:rgba(45,209,125,.18)}
-    .spot.booked{border-color:#ff9bb0;background:rgba(255,100,128,.18)}
-    .spot.soon{border-color:#ffdf9a;background:rgba(241,186,81,.2)}
-    .spot.unavailable{border-color:#8991a7;background:rgba(120,130,150,.45);color:#e2e5ee;cursor:not-allowed}
-    .spot.selected{outline:3px solid var(--accent)}
-    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    .chip{font-size:12px;padding:5px 8px;border:1px solid #31426f;border-radius:999px;color:var(--muted)}
-    .kv{margin-top:10px;display:grid;gap:8px;font-size:14px}.kv b{color:#cfe0ff}
-    .actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
-    table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
-    th,td{padding:10px;border-bottom:1px solid #22335f;text-align:left}th{color:#b7c5eb}
-    .overlay{position:fixed;inset:0;background:rgba(5,8,18,.7);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
-    .modal{width:100%;max-width:520px;background:#121b35;border:1px solid #30406b;border-radius:14px;padding:16px}
-    .row{display:grid;gap:8px;margin-bottom:10px}
-    @media (max-width:1040px){.layout{grid-template-columns:1fr}}
+    :root {
+      --bg: #0a0f1f;
+      --panel: #101933;
+      --border: #26365f;
+      --text: #e7ecff;
+      --muted: #94a5cf;
+      --accent: #64d9ff;
+      --accent-2: #7f82ff;
+      --map-line: #e9f4ff;
+      --map-arrow: #47f0d5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: var(--text);
+      background: radial-gradient(1000px 500px at 18% -12%, #1a2b61 0%, var(--bg) 55%), var(--bg);
+    }
+    .app { max-width: 1320px; margin: 22px auto; padding: 0 16px; }
+    .header, .panel {
+      background: linear-gradient(180deg, #142145 0%, var(--panel) 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+    }
+    .header {
+      padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+      gap: 12px; margin-bottom: 14px;
+    }
+    .title { font-weight: 700; letter-spacing: .2px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .toolbar {
+      margin-bottom: 14px; padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    }
+    input, select, button {
+      background: #0f1833; border: 1px solid #2b3a63; color: var(--text); border-radius: 10px;
+      padding: 10px 12px; font-size: 14px;
+    }
+    button { cursor: pointer; }
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border: none; color: #041027; font-weight: 700;
+    }
+    .layout { display: grid; grid-template-columns: 2.1fr 1fr; gap: 14px; }
+    .panel { padding: 14px; }
+    .map-wrap {
+      margin-top: 12px; border: 1px solid #30406a; border-radius: 12px; overflow: hidden; background: #111742;
+    }
+    svg { width: 100%; height: auto; display: block; }
+    .lot-title { fill: #eef6ff; font-size: 46px; letter-spacing: 2px; font-weight: 300; opacity: .95; }
+    .spot-rect {
+      fill: rgba(5, 10, 70, .58); stroke: var(--map-line); stroke-width: 2; rx: 6; transition: .15s;
+    }
+    .spot-car { fill: none; stroke: rgba(230, 240, 255, .88); stroke-width: 2; opacity: .88; }
+    .spot-label { fill: #d8e8ff; font-size: 11px; font-weight: 700; letter-spacing: .5px; pointer-events: none; }
+    .spot-group { cursor: pointer; }
+    .spot-group.free .spot-rect { fill: rgba(45, 209, 125, .14); stroke: rgba(124, 255, 189, .95); }
+    .spot-group.booked .spot-rect { fill: rgba(255, 100, 128, .14); stroke: rgba(255, 155, 176, .95); }
+    .spot-group.soon .spot-rect { fill: rgba(241, 186, 81, .14); stroke: rgba(255, 221, 150, .95); }
+    .spot-group.selected .spot-rect { stroke: var(--accent); stroke-width: 3; }
+    .chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .chip { font-size: 12px; padding: 5px 8px; border-radius: 999px; border: 1px solid #31426f; color: var(--muted); }
+    .kv { margin-top: 10px; display: grid; gap: 8px; font-size: 14px; }
+    .kv div b { color: #cfe0ff; }
+    .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+    th, td { padding: 10px; border-bottom: 1px solid #22335f; text-align: left; }
+    th { color: #b7c5eb; font-weight: 600; }
+    .overlay {
+      position: fixed; inset: 0; background: rgba(5, 8, 18, .7); display: none;
+      align-items: center; justify-content: center; padding: 16px; z-index: 10;
+    }
+    .modal {
+      width: 100%; max-width: 520px; background: #121b35; border: 1px solid #30406b; border-radius: 14px; padding: 16px;
+    }
+    .modal h3 { margin: 0 0 12px; }
+    .row { display: grid; gap: 8px; margin-bottom: 10px; }
+    @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-<div class="app">
-  <div class="header">
-    <div>
-      <div class="title">Parking Booking Dashboard <span class="muted">real map mock</span></div>
-      <div class="muted" id="floorStats"></div>
-    </div>
-    <div class="muted" id="clock"></div>
-  </div>
-
-  <div class="panel toolbar">
-    <select id="floorSelect">
-      <option value="-1">Floor -1</option>
-      <option value="-2">Floor -2</option>
-      <option value="1">Floor 1</option>
-    </select>
-    <input id="currentUser" value="Aidas" placeholder="Your name" />
-    <label class="muted"><input type="checkbox" id="isAdmin"> Admin mode</label>
-    <label class="muted"><input type="checkbox" id="onlyFree"> Only free</label>
-    <input id="search" placeholder="Search booked by user" />
-  </div>
-
-  <div class="layout">
-    <div class="panel">
-      <div class="title">Floor Plan</div>
-      <div class="muted">Gray = not available for company.</div>
-      <div class="map-wrap" id="mapWrap">
-        <img id="mapImg" class="map-img" alt="floor map" />
-        <div id="spotsLayer" class="spots-layer"></div>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">Parking Booking Dashboard <span class="muted">POC Mock</span></div>
+        <div class="muted" id="floorStats">Floor 1 · 20 spaces</div>
       </div>
-      <div class="chips">
-        <span class="chip">🟢 Free company spot</span><span class="chip">🔴 Booked</span><span class="chip">🟡 Ends in 12h</span><span class="chip">⚪ Unavailable</span>
+      <div class="muted" id="clock"></div>
+    </div>
+
+    <div class="panel toolbar">
+      <select id="floorSelect">
+        <option value="1">Floor 1 (20 spaces)</option>
+        <option value="2">Floor 2 (10 spaces)</option>
+      </select>
+      <input id="currentUser" placeholder="Your name (e.g. Aidas)" value="Aidas" />
+      <label class="muted"><input type="checkbox" id="isAdmin" /> Admin mode</label>
+      <label class="muted"><input type="checkbox" id="onlyFree" /> Only free</label>
+      <input id="search" placeholder="Search booked by user" />
+      <button id="clearFilters">Clear filters</button>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="title">Floor Plan</div>
+        <div class="muted">Click a parking slot directly on the map.</div>
+
+        <div class="map-wrap">
+          <svg viewBox="0 0 1240 720" id="lotMap" aria-label="Parking lot map">
+            <defs>
+              <linearGradient id="lotBg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#2f33a8" />
+                <stop offset="100%" stop-color="#0f1370" />
+              </linearGradient>
+            </defs>
+
+            <rect x="0" y="0" width="1240" height="720" fill="url(#lotBg)"/>
+            <rect x="0" y="285" width="1240" height="150" fill="#3d3f8f" opacity="0.95"/>
+            <line x1="0" y1="130" x2="1240" y2="130" stroke="var(--map-line)" stroke-width="2" opacity=".7"/>
+            <line x1="0" y1="458" x2="1240" y2="458" stroke="var(--map-line)" stroke-width="2" opacity=".7"/>
+
+            <text x="920" y="75" class="lot-title" id="lotTitleA">PARKING</text>
+            <text x="920" y="120" class="lot-title" id="lotTitleB">FLOOR 1</text>
+
+            <path d="M 740 335 L 890 335" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
+            <path d="M 740 335 L 775 315 M 740 335 L 775 355" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
+            <path d="M 300 330 C 260 330, 240 350, 240 390" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
+            <path d="M 240 390 L 220 370 M 240 390 L 260 370" stroke="var(--map-arrow)" stroke-width="4" fill="none" />
+
+            <g id="spotLayer"></g>
+          </svg>
+        </div>
+
+        <div class="chips">
+          <span class="chip">🟢 Free</span>
+          <span class="chip">🔴 Booked</span>
+          <span class="chip">🟡 Ending within 12h</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="title">Space Details</div>
+        <div class="muted" id="spotHint">Select a spot from the map</div>
+        <div class="kv" id="details"></div>
+        <div class="actions" id="actions"></div>
       </div>
     </div>
 
-    <div class="panel">
-      <div class="title">Space Details</div>
-      <div class="muted" id="spotHint">Select a spot from map</div>
-      <div class="kv" id="details"></div>
-      <div class="actions" id="actions"></div>
+    <div class="panel" style="margin-top:14px;">
+      <div class="title">Upcoming / Active Bookings (selected floor)</div>
+      <table>
+        <thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+        <tbody id="bookingRows"></tbody>
+      </table>
     </div>
   </div>
 
-  <div class="panel" style="margin-top:14px;">
-    <div class="title">Bookings (selected floor)</div>
-    <table>
-      <thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
-      <tbody id="bookingRows"></tbody>
-    </table>
+  <div class="overlay" id="bookingModal">
+    <div class="modal">
+      <h3>Book spot <span id="modalSpot"></span></h3>
+      <div class="row">
+        <label class="muted">Booked by</label>
+        <input id="bookedBy" />
+      </div>
+      <div class="row">
+        <label class="muted">Start date/time</label>
+        <input id="startAt" type="datetime-local" />
+      </div>
+      <div class="row">
+        <label class="muted">Duration</label>
+        <select id="durationDays">
+          <option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option>
+          <option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="btn-primary" id="saveBooking">Confirm booking</button>
+        <button id="cancelBooking">Cancel</button>
+      </div>
+    </div>
   </div>
-</div>
 
-<div class="overlay" id="bookingModal"><div class="modal">
-  <h3>Book <span id="modalSpot"></span></h3>
-  <div class="row"><label class="muted">Booked by</label><input id="bookedBy"></div>
-  <div class="row"><label class="muted">Start</label><input id="startAt" type="datetime-local"></div>
-  <div class="row"><label class="muted">Duration</label><select id="durationDays"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select></div>
-  <div class="actions"><button class="btn-primary" id="saveBooking">Confirm</button><button id="cancelBooking">Cancel</button></div>
-</div></div>
+  <script>
+    function offsetH(h) { return new Date(Date.now() + h * 3600_000).toISOString(); }
 
-<script>
-function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
-function randInt(r,min,max){return Math.floor(r()*(max-min+1))+min}
-function pickRandom(r,arr,n){const copy=[...arr];const out=[];while(copy.length&&out.length<n){out.push(copy.splice(randInt(r,0,copy.length-1),1)[0])}return out}
-function offsetH(h){ return new Date(Date.now()+h*3600_000).toISOString(); }
+    const floors = {
+      '1': { name: 'Floor 1', spots: buildFloor1() },
+      '2': { name: 'Floor 2', spots: buildFloor2() }
+    };
 
-function buildGridPositions(count, rows, cols, startX, startY, stepX, stepY, w=6.2, h=10.5){
-  const out=[]; let idx=0;
-  for(let rr=0;rr<rows;rr++){
-    for(let cc=0;cc<cols;cc++){
-      if(idx>=count) break;
-      out.push({ x:startX+cc*stepX, y:startY+rr*stepY, w, h });
-      idx++;
+    function buildFloor1() {
+      const out = [];
+      for (let i = 0; i < 13; i++) out.push({ id: `F1-A${String(i + 1).padStart(2, '0')}`, x: 18 + i * 93, y: 160, w: 70, h: 170, dir: 'down' });
+      for (let i = 0; i < 7; i++) out.push({ id: `F1-A${String(13 + i + 1).padStart(2, '0')}`, x: 550 + i * 88, y: 485, w: 66, h: 165, dir: 'up' });
+      return out;
     }
-  }
-  return out;
-}
 
-function makeFloor(seed, name, image, totalSlots, grid){
-  const r=mulberry32(seed);
-  const companyCount=randInt(r,10,20);
-  const idsPool=[]; for(let i=0;i<1000;i++) idsPool.push(String(i).padStart(3,'0'));
-  const selectedIds=pickRandom(r, idsPool, totalSlots);
-  const slotPositions=buildGridPositions(totalSlots, grid.rows, grid.cols, grid.startX, grid.startY, grid.stepX, grid.stepY, grid.w, grid.h);
-  const allSpots=slotPositions.map((p,i)=>({id:selectedIds[i], ...p, available:false}));
-  const availableIdx=new Set(pickRandom(r, Array.from({length:totalSlots},(_,i)=>i), Math.min(companyCount,totalSlots)));
-  allSpots.forEach((s,i)=>s.available=availableIdx.has(i));
-  return { name, image, spots: allSpots, companyCount: allSpots.filter(s=>s.available).length, totalCount: totalSlots };
-}
+    function buildFloor2() {
+      const out = [];
+      for (let i = 0; i < 5; i++) out.push({ id: `F2-B${String(i + 1).padStart(2, '0')}`, x: 170 + i * 95, y: 175, w: 72, h: 175, dir: 'down' });
+      for (let i = 0; i < 5; i++) out.push({ id: `F2-B${String(i + 6).padStart(2, '0')}`, x: 610 + i * 95, y: 470, w: 72, h: 175, dir: 'up' });
+      return out;
+    }
 
-const floors = {
-  '-1': makeFloor(101, 'Floor -1', 'https://i.ibb.co/LhfgXjf/parking-Minus-One.png', 40, {rows:5, cols:8, startX:6, startY:18, stepX:11.2, stepY:15.2}),
-  '-2': makeFloor(202, 'Floor -2', 'https://i.ibb.co/GkBQhfP/parking-Minus-Two.png', 30, {rows:5, cols:6, startX:9, startY:22, stepX:13.2, stepY:13.8}),
-  '1':  makeFloor(303, 'Floor 1',  'https://i.ibb.co/RY9KTGm/parking-Outside.png', 36, {rows:4, cols:9, startX:4, startY:25, stepX:10.4, stepY:16.2})
-};
+    const bookings = [
+      { floor: '1', spotId: 'F1-A03', user: 'Jonas', start: offsetH(-3), end: offsetH(36) },
+      { floor: '1', spotId: 'F1-A12', user: 'Milda', start: offsetH(1), end: offsetH(49) },
+      { floor: '2', spotId: 'F2-B02', user: 'Admin', start: offsetH(-2), end: offsetH(8) }
+    ];
 
-const bookings = [];
-for (const [fid,fd] of Object.entries(floors)) {
-  const avail=fd.spots.filter(s=>s.available).map(s=>s.id);
-  if (avail[0]) bookings.push({floor:fid, spotId:avail[0], user:'Jonas', start:offsetH(-2), end:offsetH(18)});
-  if (avail[1]) bookings.push({floor:fid, spotId:avail[1], user:'Milda', start:offsetH(2), end:offsetH(44)});
-}
+    let selectedSpot = null;
 
-let selectedSpot = null;
-function floorId(){ return document.getElementById('floorSelect').value; }
-function floor(){ return floors[floorId()]; }
-function releaseExpired(){ const now=Date.now(); for(let i=bookings.length-1;i>=0;i--) if(new Date(bookings[i].end).getTime()<=now) bookings.splice(i,1); }
-function bookingFor(spotId,f){ const now=Date.now(); return bookings.find(b=>b.floor===f&&b.spotId===spotId&&new Date(b.end)>now); }
-function statusClass(b){ if(!b) return 'free'; return (new Date(b.end)-Date.now())/3600_000<=12 ? 'soon':'booked'; }
-function spotById(id){ return floor().spots.find(s=>s.id===id); }
+    function currentFloor() { return document.getElementById('floorSelect').value; }
+    function currentSpots() { return floors[currentFloor()].spots; }
 
-function render(){
-  const fd=floor();
-  document.getElementById('mapImg').src = fd.image;
-  document.getElementById('floorStats').textContent = `${fd.name} · company available: ${fd.companyCount} / ${fd.totalCount}`;
-  document.getElementById('clock').textContent = new Date().toLocaleString();
-  renderSpots(); renderDetails(); renderTable();
-}
+    function nowTick() {
+      document.getElementById('clock').textContent = new Date().toLocaleString();
+      releaseExpired();
+      render();
+    }
 
-function renderSpots(){
-  const layer = document.getElementById('spotsLayer'); layer.innerHTML='';
-  const fd=floor();
-  const onlyFree=document.getElementById('onlyFree').checked;
-  const search=document.getElementById('search').value.trim().toLowerCase();
+    function releaseExpired() {
+      const now = Date.now();
+      for (let i = bookings.length - 1; i >= 0; i--) if (new Date(bookings[i].end).getTime() <= now) bookings.splice(i, 1);
+    }
 
-  for(const s of fd.spots){
-    const b=bookingFor(s.id,floorId());
-    if (onlyFree && (!s.available || b)) continue;
-    if (search && (!b || !b.user.toLowerCase().includes(search))) continue;
+    function activeBookingFor(spotId, floor) {
+      const now = Date.now();
+      return bookings.find(b => b.floor === floor && b.spotId === spotId && new Date(b.start).getTime() <= now && new Date(b.end).getTime() > now)
+          || bookings.find(b => b.floor === floor && b.spotId === spotId && new Date(b.end).getTime() > now);
+    }
 
-    const el=document.createElement('button');
-    const cls = !s.available ? 'unavailable' : statusClass(b);
-    el.className=`spot ${cls} ${selectedSpot===s.id?'selected':''}`;
-    el.style.left=s.x+'%'; el.style.top=s.y+'%'; el.style.width=s.w+'%'; el.style.height=s.h+'%';
-    el.textContent=s.id;
-    el.onclick=()=>{ selectedSpot=s.id; render(); };
-    layer.appendChild(el);
-  }
-}
+    function statusClass(b) {
+      if (!b) return 'free';
+      const hoursLeft = (new Date(b.end).getTime() - Date.now()) / 3600_000;
+      return hoursLeft <= 12 ? 'soon' : 'booked';
+    }
 
-function canRelease(b){
-  if(!b) return false;
-  if(document.getElementById('isAdmin').checked) return true;
-  const me=document.getElementById('currentUser').value.trim().toLowerCase();
-  return b.user.toLowerCase()===me;
-}
+    function getFilteredIds() {
+      const onlyFree = document.getElementById('onlyFree').checked;
+      const search = document.getElementById('search').value.trim().toLowerCase();
+      const floor = currentFloor();
+      const ids = new Set();
+      for (const s of currentSpots()) {
+        const b = activeBookingFor(s.id, floor);
+        if (onlyFree && b) continue;
+        if (search && (!b || !b.user.toLowerCase().includes(search))) continue;
+        ids.add(s.id);
+      }
+      return ids;
+    }
 
-function renderDetails(){
-  const hint=document.getElementById('spotHint'), details=document.getElementById('details'), actions=document.getElementById('actions');
-  details.innerHTML=''; actions.innerHTML='';
-  if(!selectedSpot){ hint.textContent='Select a spot from map'; return; }
-  const s=spotById(selectedSpot);
-  if(!s){ selectedSpot=null; hint.textContent='Select a spot from map'; return; }
-  const b=bookingFor(selectedSpot,floorId());
-  hint.textContent = `${floor().name} · Spot ${selectedSpot}`;
+    function render() {
+      const floor = currentFloor();
+      document.getElementById('lotTitleB').textContent = `FLOOR ${floor}`;
+      document.getElementById('floorStats').textContent = `${floors[floor].name} · ${floors[floor].spots.length} spaces`;
+      renderMap();
+      renderDetails();
+      renderTable();
+    }
 
-  if(!s.available){
-    details.innerHTML = `<div><b>Status:</b> NOT AVAILABLE FOR COMPANY</div>`;
-    return;
-  }
+    function renderMap() {
+      const layer = document.getElementById('spotLayer');
+      const visible = getFilteredIds();
+      const floor = currentFloor();
+      layer.innerHTML = '';
 
-  details.innerHTML = `<div><b>Status:</b> ${b?'BOOKED':'FREE'}</div>` + (b?`<div><b>User:</b> ${b.user}</div><div><b>Start:</b> ${new Date(b.start).toLocaleString()}</div><div><b>End:</b> ${new Date(b.end).toLocaleString()}</div>`:'');
+      for (const s of currentSpots()) {
+        if (!visible.has(s.id)) continue;
+        const b = activeBookingFor(s.id, floor);
+        const state = statusClass(b);
+        const g = createSvg('g', { class: `spot-group ${state} ${selectedSpot === s.id ? 'selected' : ''}` });
 
-  const book=document.createElement('button'); book.className='btn-primary'; book.textContent='Book'; book.disabled=!!b; book.onclick=openModal; actions.appendChild(book);
-  const rel=document.createElement('button'); rel.textContent='Release'; rel.disabled=!canRelease(b); rel.onclick=()=>{const i=bookings.findIndex(x=>x.floor===floorId()&&x.spotId===selectedSpot&&x.end===b.end); if(i>=0) bookings.splice(i,1); render();}; actions.appendChild(rel);
-}
+        const rect = createSvg('rect', { class: 'spot-rect', x: s.x, y: s.y, width: s.w, height: s.h, rx: 5 });
+        const car = createSvg('rect', { class: 'spot-car', x: s.x + 12, y: s.y + 10, width: s.w - 24, height: s.h - 20, rx: 16 });
+        const mid = createSvg('line', { class: 'spot-car', x1: s.x + s.w / 2, y1: s.y + 25, x2: s.x + s.w / 2, y2: s.y + s.h - 25 });
+        const wind1 = createSvg('line', { class: 'spot-car', x1: s.x + 18, y1: s.y + 42, x2: s.x + s.w - 18, y2: s.y + 42 });
+        const wind2 = createSvg('line', { class: 'spot-car', x1: s.x + 18, y1: s.y + s.h - 42, x2: s.x + s.w - 18, y2: s.y + s.h - 42 });
+        const label = createSvg('text', { class: 'spot-label', x: s.x + 6, y: s.dir === 'down' ? s.y - 8 : s.y + s.h + 14 });
+        label.textContent = s.id;
 
-function renderTable(){
-  const tbody=document.getElementById('bookingRows');
-  const rows=bookings.filter(b=>b.floor===floorId()).sort((a,b)=>new Date(a.start)-new Date(b.start));
-  tbody.innerHTML = rows.map(b=>`<tr><td>${b.spotId}</td><td>${b.user}</td><td>${new Date(b.start).toLocaleString()}</td><td>${new Date(b.end).toLocaleString()}</td><td>${new Date(b.start)>Date.now()?'Upcoming':'Active'}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No bookings</td></tr>';
-}
+        g.append(rect, car, mid, wind1, wind2, label);
+        g.addEventListener('click', () => { selectedSpot = s.id; render(); });
+        layer.appendChild(g);
+      }
+    }
 
-function openModal(){
-  if(!selectedSpot || !spotById(selectedSpot)?.available) return;
-  document.getElementById('bookingModal').style.display='flex';
-  document.getElementById('modalSpot').textContent=selectedSpot;
-  document.getElementById('bookedBy').value=document.getElementById('currentUser').value||'Unknown';
-  const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
-  document.getElementById('startAt').value=d.toISOString().slice(0,16);
-}
-function closeModal(){ document.getElementById('bookingModal').style.display='none'; }
+    function createSvg(tag, attrs = {}) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      return el;
+    }
 
-document.getElementById('saveBooking').onclick=()=>{
-  const s=spotById(selectedSpot); if(!s?.available) return;
-  const user=document.getElementById('bookedBy').value.trim();
-  const start=new Date(document.getElementById('startAt').value);
-  const days=Number(document.getElementById('durationDays').value);
-  if(!user||Number.isNaN(start.getTime())||days<1||days>7) return;
-  if(bookingFor(selectedSpot,floorId())) return alert('Spot already booked');
-  const end=new Date(start.getTime()+days*24*3600_000);
-  bookings.push({floor:floorId(),spotId:selectedSpot,user,start:start.toISOString(),end:end.toISOString()});
-  closeModal(); render();
-};
+    function renderDetails() {
+      const hint = document.getElementById('spotHint');
+      const details = document.getElementById('details');
+      const actions = document.getElementById('actions');
+      details.innerHTML = ''; actions.innerHTML = '';
+      if (!selectedSpot) return;
 
-document.getElementById('cancelBooking').onclick=closeModal;
-document.getElementById('bookingModal').onclick=e=>{ if(e.target.id==='bookingModal') closeModal(); };
-['floorSelect','onlyFree','search','currentUser','isAdmin'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{if(id==='floorSelect') selectedSpot=null; render();}));
+      const floor = currentFloor();
+      const spotExists = currentSpots().some(s => s.id === selectedSpot);
+      if (!spotExists) {
+        selectedSpot = null;
+        hint.textContent = 'Select a spot from the map';
+        return;
+      }
 
-setInterval(()=>{releaseExpired();render();},30000);
-releaseExpired(); render();
-</script>
+      const b = activeBookingFor(selectedSpot, floor);
+      hint.textContent = `${floors[floor].name} · Spot ${selectedSpot}`;
+
+      const rows = [`<div><b>Status:</b> ${b ? 'BOOKED' : 'FREE'}</div>`];
+      if (b) {
+        rows.push(`<div><b>User:</b> ${b.user}</div>`);
+        rows.push(`<div><b>Start:</b> ${new Date(b.start).toLocaleString()}</div>`);
+        rows.push(`<div><b>End:</b> ${new Date(b.end).toLocaleString()}</div>`);
+      }
+      details.innerHTML = rows.join('');
+
+      const bookBtn = document.createElement('button');
+      bookBtn.textContent = 'Book this spot'; bookBtn.className = 'btn-primary';
+      bookBtn.disabled = !!b; bookBtn.onclick = openBookingModal; actions.appendChild(bookBtn);
+
+      const releaseBtn = document.createElement('button');
+      releaseBtn.textContent = 'Release'; releaseBtn.disabled = !canRelease(b);
+      releaseBtn.onclick = () => {
+        const idx = bookings.findIndex(x => x.floor === floor && x.spotId === selectedSpot && x.end === b.end);
+        if (idx >= 0) bookings.splice(idx, 1);
+        render();
+      };
+      actions.appendChild(releaseBtn);
+    }
+
+    function canRelease(b) {
+      if (!b) return false;
+      const me = document.getElementById('currentUser').value.trim().toLowerCase();
+      if (document.getElementById('isAdmin').checked) return true;
+      return b.user.trim().toLowerCase() === me;
+    }
+
+    function renderTable() {
+      const rows = document.getElementById('bookingRows');
+      const floor = currentFloor();
+      const sorted = bookings.filter(b => b.floor === floor).sort((a, b) => new Date(a.start) - new Date(b.start));
+      rows.innerHTML = sorted.map(b => {
+        const status = new Date(b.start).getTime() > Date.now() ? 'Upcoming' : 'Active';
+        return `<tr><td>${b.spotId}</td><td>${b.user}</td><td>${new Date(b.start).toLocaleString()}</td><td>${new Date(b.end).toLocaleString()}</td><td>${status}</td></tr>`;
+      }).join('') || `<tr><td colspan="5" class="muted">No bookings</td></tr>`;
+    }
+
+    function openBookingModal() {
+      if (!selectedSpot) return;
+      document.getElementById('bookingModal').style.display = 'flex';
+      document.getElementById('modalSpot').textContent = selectedSpot;
+      document.getElementById('bookedBy').value = document.getElementById('currentUser').value.trim() || 'Unknown';
+      const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      document.getElementById('startAt').value = d.toISOString().slice(0,16);
+      document.getElementById('durationDays').value = '1';
+    }
+
+    function closeBookingModal() { document.getElementById('bookingModal').style.display = 'none'; }
+
+    document.getElementById('saveBooking').onclick = () => {
+      const floor = currentFloor();
+      const user = document.getElementById('bookedBy').value.trim();
+      const start = new Date(document.getElementById('startAt').value);
+      const days = Number(document.getElementById('durationDays').value);
+      if (!user || Number.isNaN(start.getTime()) || days < 1 || days > 7) return;
+      if (activeBookingFor(selectedSpot, floor)) return alert('Spot is already booked');
+      const end = new Date(start.getTime() + days * 24 * 3600_000);
+      bookings.push({ floor, spotId: selectedSpot, user, start: start.toISOString(), end: end.toISOString() });
+      closeBookingModal(); render();
+    };
+
+    document.getElementById('cancelBooking').onclick = closeBookingModal;
+    document.getElementById('bookingModal').onclick = (e) => { if (e.target.id === 'bookingModal') closeBookingModal(); };
+
+    document.getElementById('clearFilters').onclick = () => {
+      document.getElementById('onlyFree').checked = false;
+      document.getElementById('search').value = '';
+      render();
+    };
+
+    document.getElementById('floorSelect').addEventListener('change', () => {
+      selectedSpot = null;
+      render();
+    });
+
+    ['onlyFree','search','currentUser','isAdmin'].forEach(id => {
+      document.getElementById(id).addEventListener('input', render);
+      document.getElementById(id).addEventListener('change', render);
+    });
+
+    setInterval(nowTick, 30_000);
+    nowTick();
+  </script>
 </body>
 </html>
