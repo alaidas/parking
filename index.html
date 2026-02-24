@@ -155,7 +155,7 @@
 </div></div>
 
 <script>
-const state = { token:'', me:null, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50 };
+const state = { token:'', me:null, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50 };
 const $ = id => document.getElementById(id);
 const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString();
 const getViewDate = () => $('viewDate').value;
@@ -278,14 +278,30 @@ function renderMap() {
     if (sa.num !== sb.num) return sa.num - sb.num;
     return sa.raw.localeCompare(sb.raw);
   });
+
+  const layoutAt = (i) => {
+    if (i < 13) return { x: 18 + i * 93, y: 160, w: 70, h: 170 };
+    if (i < 20) return { x: 550 + (i - 13) * 88, y: 485, w: 66, h: 165 };
+    const j = i - 20;
+    const col = j % 10;
+    const row = Math.floor(j / 10);
+    return { x: 18 + col * 93, y: 160 + row * 210, w: 70, h: 170 };
+  };
+
+  state.displayLayouts = {};
+  orderedSpaces.forEach((s, idx) => {
+    state.displayLayouts[s.id] = layoutAt(idx);
+  });
+
   for (const s of orderedSpaces) {
     if (onlyFree && s.isBooked) continue;
+    const d = state.displayLayouts[s.id] || { x: s.x ?? 20, y: s.y ?? 160, w: s.w ?? 72, h: s.h ?? 170 };
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class', `spot-group ${statusClass(s)} ${state.selectedSpot===s.id?'selected':''}`);
     const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rect.setAttribute('class','spot-rect'); rect.setAttribute('x', s.x ?? 20); rect.setAttribute('y', s.y ?? 160); rect.setAttribute('width', s.w ?? 72); rect.setAttribute('height', s.h ?? 170);
+    rect.setAttribute('class','spot-rect'); rect.setAttribute('x', d.x); rect.setAttribute('y', d.y); rect.setAttribute('width', d.w); rect.setAttribute('height', d.h);
     const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('class','spot-label'); txt.setAttribute('x',(s.x??20)+(s.w??72)/2); txt.setAttribute('y',(s.y??160)+(s.h??170)/2); txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle'); txt.textContent=s.space_number;
+    txt.setAttribute('class','spot-label'); txt.setAttribute('x', d.x + d.w / 2); txt.setAttribute('y', d.y + d.h / 2); txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle'); txt.textContent=s.space_number;
     g.append(rect,txt); g.onclick = ()=>{ state.selectedSpot=s.id; render(); }; layer.appendChild(g);
   }
 }
@@ -300,8 +316,9 @@ function renderDetails() {
 
   const map = $('mapMiniView');
   map.style.backgroundImage = f?.image_path ? `url(${f.image_path})` : 'none';
-  state.baseX = s.map_x ?? (((s.x ?? 20) + (s.w ?? 72)/2)/1240)*100;
-  state.baseY = s.map_y ?? (((s.y ?? 160) + (s.h ?? 170)/2)/720)*100;
+  const d = state.displayLayouts[s.id] || { x: s.x ?? 20, y: s.y ?? 160, w: s.w ?? 72, h: s.h ?? 170 };
+  state.baseX = s.map_x ?? (((d.x) + (d.w)/2)/1240)*100;
+  state.baseY = s.map_y ?? (((d.y) + (d.h)/2)/720)*100;
   state.panX = 0; state.panY = 0;
   updateMiniPos(s.map_zoom ?? 260);
   $('mapMini').style.display='block'; $('mapMiniCaption').textContent = `Location on ${f?.name || 'floor'} (drag to explore)`;
