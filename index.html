@@ -299,7 +299,7 @@ function renderDetails() {
   $('details').innerHTML = `<div><b>Status:</b> ${s.isBooked?'Booked':'Free'}</div>${s.isBooked?`<div><b>User:</b> ${esc(s.bookingUser)}</div><div><b>Start:</b> ${esc(fmtDate(s.bookingStart))}</div><div><b>End:</b> ${esc(fmtDate(s.bookingEnd))}</div>`:''}`;
 
   const map = $('mapMiniView');
-  map.style.backgroundImage = `url(${f?.image_path || './resources/parking-outside.png'})`;
+  map.style.backgroundImage = f?.image_path ? `url(${f.image_path})` : 'none';
   state.baseX = s.map_x ?? (((s.x ?? 20) + (s.w ?? 72)/2)/1240)*100;
   state.baseY = s.map_y ?? (((s.y ?? 160) + (s.h ?? 170)/2)/720)*100;
   state.panX = 0; state.panY = 0;
@@ -670,7 +670,7 @@ function currentSpaceFloor() {
 function renderSpaceMapEditor() {
   const el = $('spaceMapEditor');
   const f = currentSpaceFloor();
-  el.style.backgroundImage = `url(${f?.image_path || './resources/parking-outside.png'})`;
+  el.style.backgroundImage = f?.image_path ? `url(${f.image_path})` : 'none';
   el.style.backgroundSize = `${state.spaceMapZoom}%`;
   el.style.backgroundPosition = `${Math.max(0, Math.min(100, state.spaceMapX))}% ${Math.max(0, Math.min(100, state.spaceMapY))}%`;
 }

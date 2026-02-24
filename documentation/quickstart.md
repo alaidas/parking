@@ -19,10 +19,7 @@ Open: http://localhost:3000
   - user: `admin`
   - password: the one you just set
 
-## 4) Create demo data (optional)
-- Click **Seed Demo** (admin only).
-
-## 5) Main usage
+## 4) Main usage
 - Pick floor + date.
 - Select spot.
 - Book / release based on your role.

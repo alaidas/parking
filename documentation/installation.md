@@ -48,25 +48,22 @@ Important:
 - If DB exists and key is missing/mismatch, app fails intentionally.
 - App does **not** recreate/overwrite existing DB on auth/open errors.
 
-## 6) Optional: seed demo data
-After admin login, click **Seed Demo** in UI toolbar.
-
 This creates sample floors/spaces/bookings.
 
-## 7) Run in production style
+## 6) Run in production style
 ```bash
 NODE_ENV=production PORT=3000 npm start
 ```
 Use reverse proxy (Nginx/Caddy) for TLS if internet-facing.
 
-## 8) Backup
+## 7) Backup
 Backup both:
 - `data/parking.sqlite3`
 - `secrets/db-access.key`
 
 Restoring only one of them is not enough.
 
-## 9) Common troubleshooting
+## 8) Common troubleshooting
 - `DB key missing while DB exists`:
   - restore `secrets/db-access.key` from backup.
 - Port in use:
