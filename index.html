@@ -59,7 +59,7 @@
       fill: rgba(5, 10, 70, .58); stroke: var(--map-line); stroke-width: 2; rx: 6; transition: .15s;
     }
     .spot-car { fill: none; stroke: rgba(230, 240, 255, .88); stroke-width: 2; opacity: .88; }
-    .spot-label { fill: #d8e8ff; font-size: 15px; font-weight: 800; letter-spacing: .3px; pointer-events: none; }
+    .spot-label { fill: #d8e8ff; font-size: 25px; font-weight: 400; letter-spacing: .3px; pointer-events: none; }
     .spot-group { cursor: pointer; }
     .spot-group.free .spot-rect { fill: rgba(45, 209, 125, .14); stroke: rgba(124, 255, 189, .95); }
     .spot-group.booked .spot-rect { fill: rgba(255, 100, 128, .14); stroke: rgba(255, 155, 176, .95); }
@@ -153,6 +153,7 @@
         <option value="2">Floor 2 (10 spaces)</option>
       </select>
       <label class="muted"><input type="checkbox" id="isAdmin" /> Admin mode</label>
+      <label class="muted">View date <input id="viewDate" type="date" /></label>
       <label class="muted"><input type="checkbox" id="onlyFree" /> Only free</label>
       <input id="search" placeholder="Search booked by user" />
       <button id="clearFilters">Clear filters</button>
@@ -205,7 +206,7 @@
     </div>
 
     <div class="panel" style="margin-top:14px;">
-      <div class="title">Upcoming / Active Bookings (selected floor)</div>
+      <div class="title">Bookings (selected floor)</div>
       <table>
         <thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
         <tbody id="bookingRows"></tbody>
@@ -239,8 +240,8 @@
         <input id="bookedBy" />
       </div>
       <div class="row">
-        <label class="muted">Start date/time</label>
-        <input id="startAt" type="datetime-local" />
+        <label class="muted">Start date</label>
+        <input id="startAt" type="date" />
       </div>
       <div class="row">
         <label class="muted">Duration</label>
@@ -301,6 +302,12 @@
 
     function currentFloor() { return document.getElementById('floorSelect').value; }
     function currentSpots() { return floors[currentFloor()].spots; }
+    function getViewTime() {
+      const raw = document.getElementById('viewDate').value;
+      if (!raw) return Date.now();
+      const t = new Date(`${raw}T12:00`).getTime();
+      return Number.isNaN(t) ? Date.now() : t;
+    }
 
     function nowTick() {
       document.getElementById('clock').textContent = new Date().toLocaleString();
@@ -313,15 +320,18 @@
       for (let i = bookings.length - 1; i >= 0; i--) if (new Date(bookings[i].end).getTime() <= now) bookings.splice(i, 1);
     }
 
-    function activeBookingFor(spotId, floor) {
-      const now = Date.now();
-      return bookings.find(b => b.floor === floor && b.spotId === spotId && new Date(b.start).getTime() <= now && new Date(b.end).getTime() > now)
-          || bookings.find(b => b.floor === floor && b.spotId === spotId && new Date(b.end).getTime() > now);
+    function activeBookingFor(spotId, floor, atMs = getViewTime()) {
+      return bookings.find(b => {
+        if (b.floor !== floor || b.spotId !== spotId) return false;
+        const start = new Date(b.start).getTime();
+        const end = new Date(b.end).getTime();
+        return start <= atMs && atMs < end;
+      });
     }
 
-    function statusClass(b) {
+    function statusClass(b, atMs = getViewTime()) {
       if (!b) return 'free';
-      const hoursLeft = (new Date(b.end).getTime() - Date.now()) / 3600_000;
+      const hoursLeft = (new Date(b.end).getTime() - atMs) / 3600_000;
       return hoursLeft <= 12 ? 'soon' : 'booked';
     }
 
@@ -405,11 +415,11 @@
       const b = activeBookingFor(selectedSpot, floor);
       hint.textContent = `${floors[floor].name} · Spot ${selectedSpot}`;
 
-      const rows = [`<div><b>Status:</b> ${b ? 'BOOKED' : 'FREE'}</div>`];
+      const rows = [`<div><b>Status:</b> ${b ? 'Booked' : 'Free'}</div>`];
       if (b) {
         rows.push(`<div><b>User:</b> ${b.user}</div>`);
-        rows.push(`<div><b>Start:</b> ${new Date(b.start).toLocaleString()}</div>`);
-        rows.push(`<div><b>End:</b> ${new Date(b.end).toLocaleString()}</div>`);
+        rows.push(`<div><b>Start:</b> ${new Date(b.start).toLocaleDateString()}</div>`);
+        rows.push(`<div><b>End:</b> ${new Date(b.end).toLocaleDateString()}</div>`);
       }
       details.innerHTML = rows.join('');
 
@@ -459,10 +469,13 @@
     function renderTable() {
       const rows = document.getElementById('bookingRows');
       const floor = currentFloor();
+      const atMs = getViewTime();
       const sorted = bookings.filter(b => b.floor === floor).sort((a, b) => new Date(a.start) - new Date(b.start));
       rows.innerHTML = sorted.map(b => {
-        const status = new Date(b.start).getTime() > Date.now() ? 'Upcoming' : 'Active';
-        return `<tr><td>${b.spotId}</td><td>${b.user}</td><td>${new Date(b.start).toLocaleString()}</td><td>${new Date(b.end).toLocaleString()}</td><td>${status}</td></tr>`;
+        const startMs = new Date(b.start).getTime();
+        const endMs = new Date(b.end).getTime();
+        const status = startMs <= atMs && atMs < endMs ? 'Active' : (startMs > atMs ? 'Booked' : 'Ended');
+        return `<tr><td>${b.spotId}</td><td>${b.user}</td><td>${new Date(b.start).toLocaleDateString()}</td><td>${new Date(b.end).toLocaleDateString()}</td><td>${status}</td></tr>`;
       }).join('') || `<tr><td colspan="5" class="muted">No bookings</td></tr>`;
     }
 
@@ -488,7 +501,7 @@
       document.getElementById('modalSpot').textContent = selectedSpot;
       document.getElementById('bookedBy').value = currentUser || 'Unknown';
       const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-      document.getElementById('startAt').value = d.toISOString().slice(0,16);
+      document.getElementById('startAt').value = d.toISOString().slice(0,10);
       document.getElementById('durationDays').value = '1';
     }
 
@@ -497,11 +510,18 @@
     document.getElementById('saveBooking').onclick = () => {
       const floor = currentFloor();
       const user = document.getElementById('bookedBy').value.trim();
-      const start = new Date(document.getElementById('startAt').value);
+      const startRaw = document.getElementById('startAt').value;
+      const start = new Date(`${startRaw}T00:00`);
       const days = Number(document.getElementById('durationDays').value);
       if (!user || Number.isNaN(start.getTime()) || days < 1 || days > 7) return;
-      if (activeBookingFor(selectedSpot, floor)) return alert('Spot is already booked');
       const end = new Date(start.getTime() + days * 24 * 3600_000);
+      const hasOverlap = bookings.some(b => {
+        if (b.floor !== floor || b.spotId !== selectedSpot) return false;
+        const bStart = new Date(b.start).getTime();
+        const bEnd = new Date(b.end).getTime();
+        return start.getTime() < bEnd && bStart < end.getTime();
+      });
+      if (hasOverlap) return alert('Spot is already booked in selected period');
       bookings.push({ floor, spotId: selectedSpot, user, start: start.toISOString(), end: end.toISOString() });
       closeBookingModal(); render();
     };
@@ -534,6 +554,9 @@
     document.getElementById('clearFilters').onclick = () => {
       document.getElementById('onlyFree').checked = false;
       document.getElementById('search').value = '';
+      const d = new Date();
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      document.getElementById('viewDate').value = d.toISOString().slice(0,10);
       render();
     };
 
@@ -542,7 +565,7 @@
       render();
     });
 
-    ['onlyFree','search','isAdmin'].forEach(id => {
+    ['onlyFree','search','isAdmin','viewDate'].forEach(id => {
       document.getElementById(id).addEventListener('input', render);
       document.getElementById(id).addEventListener('change', render);
     });
@@ -597,6 +620,10 @@
 
       window.addEventListener('touchend', pointerUp, { passive: true });
     })();
+
+    const initialViewDate = new Date();
+    initialViewDate.setMinutes(initialViewDate.getMinutes() - initialViewDate.getTimezoneOffset());
+    document.getElementById('viewDate').value = initialViewDate.toISOString().slice(0,10);
 
     setInterval(nowTick, 30_000);
     nowTick();
