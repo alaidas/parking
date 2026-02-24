@@ -3,630 +3,336 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Parking Booking Dashboard (Mock)</title>
+  <title>Parking Booking Dashboard</title>
   <style>
-    :root {
-      --bg: #0a0f1f;
-      --panel: #101933;
-      --border: #26365f;
-      --text: #e7ecff;
-      --muted: #94a5cf;
-      --accent: #64d9ff;
-      --accent-2: #7f82ff;
-      --map-line: #e9f4ff;
-      --map-arrow: #47f0d5;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      color: var(--text);
-      background: radial-gradient(1000px 500px at 18% -12%, #1a2b61 0%, var(--bg) 55%), var(--bg);
-    }
-    .app { max-width: 1320px; margin: 22px auto; padding: 0 16px; }
-    .header, .panel {
-      background: linear-gradient(180deg, #142145 0%, var(--panel) 100%);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.25);
-    }
-    .header {
-      padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
-      gap: 12px; margin-bottom: 14px;
-    }
-    .title { font-weight: 700; letter-spacing: .2px; }
-    .muted { color: var(--muted); font-size: 13px; }
-    .toolbar {
-      margin-bottom: 14px; padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-    }
-    input, select, button {
-      background: #0f1833; border: 1px solid #2b3a63; color: var(--text); border-radius: 10px;
-      padding: 10px 12px; font-size: 14px;
-    }
-    button { cursor: pointer; }
-    .btn-primary {
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      border: none; color: #041027; font-weight: 700;
-    }
-    .layout { display: grid; grid-template-columns: 2.1fr 1fr; gap: 14px; }
-    .panel { padding: 14px; }
-    .map-wrap {
-      margin-top: 12px; border: 1px solid #30406a; border-radius: 12px; overflow: hidden; background: #111742;
-    }
-    svg { width: 100%; height: auto; display: block; }
-    .lot-title { fill: #eef6ff; font-size: 46px; letter-spacing: 2px; font-weight: 300; opacity: .95; }
-    .spot-rect {
-      fill: rgba(5, 10, 70, .58); stroke: var(--map-line); stroke-width: 2; rx: 6; transition: .15s;
-    }
-    .spot-car { fill: none; stroke: rgba(230, 240, 255, .88); stroke-width: 2; opacity: .88; }
-    .spot-label { fill: #d8e8ff; font-size: 25px; font-weight: 400; letter-spacing: .3px; pointer-events: none; }
-    .spot-group { cursor: pointer; }
-    .spot-group.free .spot-rect { fill: rgba(45, 209, 125, .14); stroke: rgba(124, 255, 189, .95); }
-    .spot-group.booked .spot-rect { fill: rgba(255, 100, 128, .14); stroke: rgba(255, 155, 176, .95); }
-    .spot-group.soon .spot-rect { fill: rgba(241, 186, 81, .14); stroke: rgba(255, 221, 150, .95); }
-    .spot-group.selected .spot-rect { stroke: var(--accent); stroke-width: 3; }
-    .chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-    .chip { font-size: 12px; padding: 5px 8px; border-radius: 999px; border: 1px solid #31426f; color: var(--muted); }
-    .kv { margin-top: 10px; display: grid; gap: 8px; font-size: 14px; }
-    .kv div b { color: #cfe0ff; }
-    .map-mini {
-      margin-top: 10px;
-      border: 1px solid #2b3c66;
-      border-radius: 10px;
-      overflow: hidden;
-      display: none;
-    }
-    .map-mini-view {
-      position: relative;
-      height: 340px;
-      background-size: 260%;
-      background-repeat: no-repeat;
-      background-position: center;
-      cursor: grab;
-      user-select: none;
-      touch-action: none;
-    }
-    .map-mini-view.dragging { cursor: grabbing; }
-    .map-mini-dot {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 16px;
-      height: 16px;
-      margin-left: -8px;
-      margin-top: -8px;
-      border-radius: 50%;
-      background: #ff3b3b;
-      border: 2px solid #fff;
-      box-shadow: 0 0 0 8px rgba(255, 59, 59, 0.22);
-    }
-    .map-mini-caption {
-      font-size: 12px;
-      color: var(--muted);
-      padding: 6px 8px;
-      border-top: 1px solid #2b3c66;
-      background: #0f1833;
-    }
-    .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
-    th, td { padding: 10px; border-bottom: 1px solid #22335f; text-align: left; }
-    th { color: #b7c5eb; font-weight: 600; }
-    .overlay {
-      position: fixed; inset: 0; background: rgba(5, 8, 18, .7); display: none;
-      align-items: center; justify-content: center; padding: 16px; z-index: 10;
-    }
-    .modal {
-      width: 100%; max-width: 520px; background: #121b35; border: 1px solid #30406b; border-radius: 14px; padding: 16px;
-    }
-    .modal h3 { margin: 0 0 12px; }
-    .row { display: grid; gap: 8px; margin-bottom: 10px; }
-    .header-actions { display: flex; align-items: center; gap: 8px; }
-    .current-user-pill {
-      font-size: 12px;
-      color: #cfe0ff;
-      border: 1px solid #31426f;
-      border-radius: 999px;
-      padding: 6px 10px;
-      background: #0f1833;
-      white-space: nowrap;
-    }
-    @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
+    :root { --bg:#0a0f1f; --panel:#101933; --border:#26365f; --text:#e7ecff; --muted:#94a5cf; --accent:#64d9ff; --accent2:#7f82ff; --line:#e9f4ff; }
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui;color:var(--text);background:radial-gradient(1000px 500px at 18% -12%, #1a2b61 0%, var(--bg) 55%), var(--bg)}
+    .app{max-width:1320px;margin:22px auto;padding:0 16px}.header,.panel{background:linear-gradient(180deg,#142145 0%,var(--panel) 100%);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    .header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+    .title{font-weight:700}.muted{color:var(--muted);font-size:13px}.toolbar{margin-bottom:14px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    input,select,button{background:#0f1833;border:1px solid #2b3a63;color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px} button{cursor:pointer}
+    .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#041027;font-weight:700}
+    .layout{display:grid;grid-template-columns:2.1fr 1fr;gap:14px}.panel{padding:14px}
+    .map-wrap{margin-top:12px;border:1px solid #30406a;border-radius:12px;overflow:hidden;background:#111742} svg{width:100%;display:block}
+    .lot-title{fill:#eef6ff;font-size:46px;letter-spacing:2px;font-weight:300}.spot-rect{fill:rgba(5,10,70,.58);stroke:var(--line);stroke-width:2;rx:6}
+    .spot-label{fill:#d8e8ff;font-size:18px;font-weight:700;pointer-events:none}.spot-group{cursor:pointer}.spot-group.free .spot-rect{fill:rgba(45,209,125,.14);stroke:rgba(124,255,189,.95)}
+    .spot-group.booked .spot-rect{fill:rgba(255,100,128,.14);stroke:rgba(255,155,176,.95)}.spot-group.soon .spot-rect{fill:rgba(241,186,81,.14);stroke:rgba(255,221,150,.95)}.spot-group.selected .spot-rect{stroke:var(--accent);stroke-width:3}
+    .chips{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.chip{font-size:12px;padding:5px 8px;border-radius:999px;border:1px solid #31426f;color:var(--muted)}
+    .kv{margin-top:10px;display:grid;gap:8px;font-size:14px}.map-mini{margin-top:10px;border:1px solid #2b3c66;border-radius:10px;overflow:hidden;display:none}
+    .map-mini-view{height:340px;background-size:260%;background-repeat:no-repeat;background-position:center;cursor:grab;touch-action:none}.map-mini-view.dragging{cursor:grabbing}
+    .map-mini-caption{font-size:12px;color:var(--muted);padding:6px 8px;border-top:1px solid #2b3c66;background:#0f1833}
+    .actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap} table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px} th,td{padding:10px;border-bottom:1px solid #22335f;text-align:left}
+    .overlay{position:fixed;inset:0;background:rgba(5,8,18,.7);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+    .modal{width:100%;max-width:740px;background:#121b35;border:1px solid #30406b;border-radius:14px;padding:16px}.row{display:grid;gap:8px;margin-bottom:10px}.header-actions{display:flex;align-items:center;gap:8px}
+    .pill{font-size:12px;color:#cfe0ff;border:1px solid #31426f;border-radius:999px;padding:6px 10px;background:#0f1833;white-space:nowrap}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.admin-block{border:1px solid #2b3a63;border-radius:10px;padding:10px;margin-top:10px}
+    .list{max-height:220px;overflow:auto;border:1px solid #2b3a63;border-radius:8px;margin-top:8px}.list div{padding:8px;border-bottom:1px solid #24365d}.list div:last-child{border-bottom:0}
+    .danger{border-color:#7d2b44;color:#ffb6c8}
+    @media (max-width:1040px){.layout{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="header">
-      <div>
-        <div class="title">Parking Booking Dashboard <span class="muted">POC Mock</span></div>
-        <div class="muted" id="floorStats">Floor 1 · 20 spaces</div>
-      </div>
-      <div class="header-actions">
-        <button id="openLoginPanel">Login</button>
-        <span class="current-user-pill" id="currentUserLabel">User: Aidas</span>
-        <div class="muted" id="clock"></div>
-      </div>
-    </div>
-
-    <div class="panel toolbar">
-      <select id="floorSelect">
-        <option value="1">Floor 1 (20 spaces)</option>
-        <option value="2">Floor 2 (10 spaces)</option>
-      </select>
-      <label class="muted"><input type="checkbox" id="isAdmin" /> Admin mode</label>
-      <label class="muted">View date <input id="viewDate" type="date" /></label>
-      <label class="muted"><input type="checkbox" id="onlyFree" /> Only free</label>
-      <input id="search" placeholder="Search booked by user" />
-      <button id="clearFilters">Clear filters</button>
-    </div>
-
-    <div class="layout">
-      <div class="panel">
-        <div class="title">Floor Plan</div>
-        <div class="muted">Click a parking slot directly on the map.</div>
-
-        <div class="map-wrap">
-          <svg viewBox="0 0 1240 720" id="lotMap" aria-label="Parking lot map">
-            <defs>
-              <linearGradient id="lotBg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#2f33a8" />
-                <stop offset="100%" stop-color="#0f1370" />
-              </linearGradient>
-            </defs>
-
-            <rect x="0" y="0" width="1240" height="720" fill="url(#lotBg)"/>
-            <line x1="0" y1="130" x2="1240" y2="130" stroke="var(--map-line)" stroke-width="2" opacity=".7"/>
-
-            <text x="920" y="75" class="lot-title" id="lotTitleA">PARKING</text>
-            <text x="920" y="120" class="lot-title" id="lotTitleB">FLOOR 1</text>
-
-
-            <g id="spotLayer"></g>
-            <line x1="0" y1="458" x2="1240" y2="458" stroke="var(--map-line)" stroke-width="2" opacity=".7"/>
-          </svg>
-        </div>
-
-        <div class="chips">
-          <span class="chip">🟢 Free</span>
-          <span class="chip">🔴 Booked</span>
-          <span class="chip">🟡 Ending within 12h</span>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="title">Space Details</div>
-        <div class="muted" id="spotHint">Select a spot from the map</div>
-        <div class="kv" id="details"></div>
-        <div class="map-mini" id="mapMini">
-          <div class="map-mini-view" id="mapMiniView">
-                      </div>
-          <div class="map-mini-caption" id="mapMiniCaption"></div>
-        </div>
-        <div class="actions" id="actions"></div>
-      </div>
-    </div>
-
-    <div class="panel" style="margin-top:14px;">
-      <div class="title">Bookings (selected floor)</div>
-      <table>
-        <thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
-        <tbody id="bookingRows"></tbody>
-      </table>
+<div class="app">
+  <div class="header">
+    <div><div class="title">Parking Booking Dashboard</div><div class="muted" id="floorStats">No floor selected</div></div>
+    <div class="header-actions">
+      <button id="openLoginPanel">Login</button>
+      <button id="openAdminPanel" style="display:none">Admin Panel</button>
+      <button id="logoutBtn" style="display:none">Logout</button>
+      <span class="pill" id="currentUserLabel">User: guest</span>
+      <div class="muted" id="clock"></div>
     </div>
   </div>
 
-  <div class="overlay" id="loginModal">
-    <div class="modal">
-      <h3>User login panel</h3>
-      <div class="row">
-        <label class="muted">User</label>
-        <input id="loginUser" placeholder="Enter user" />
-      </div>
-      <div class="row">
-        <label class="muted">Password</label>
-        <input id="loginPassword" type="password" placeholder="Enter password" />
-      </div>
-      <div class="actions">
-        <button class="btn-primary" id="loginConfirm">Log in</button>
-        <button id="loginClose">Close</button>
-      </div>
+  <div class="panel toolbar">
+    <select id="floorSelect"></select>
+    <label class="muted">View date <input id="viewDate" type="date" /></label>
+    <label class="muted"><input type="checkbox" id="onlyFree" /> Only free</label>
+    <input id="search" placeholder="Search booked by user" />
+    <button id="clearFilters">Clear filters</button>
+    <button id="seedDemoBtn" style="display:none">Seed Demo</button>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="title">Floor Plan</div><div class="muted">Click a parking slot directly on the map.</div>
+      <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#0f1370"/><line x1="0" y1="130" x2="1240" y2="130" stroke="var(--line)" stroke-width="2" opacity=".7"/><text x="920" y="75" class="lot-title">PARKING</text><text x="920" y="120" class="lot-title" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="var(--line)" stroke-width="2" opacity=".7"/></svg></div>
+      <div class="chips"><span class="chip">🟢 Free</span><span class="chip">🔴 Booked</span><span class="chip">🟡 Ending soon</span></div>
+    </div>
+    <div class="panel">
+      <div class="title">Space Details</div><div class="muted" id="spotHint">Select a spot from the map</div>
+      <div class="kv" id="details"></div>
+      <div class="map-mini" id="mapMini"><div class="map-mini-view" id="mapMiniView"></div><div class="map-mini-caption" id="mapMiniCaption"></div></div>
+      <div class="actions" id="actions"></div>
     </div>
   </div>
 
-  <div class="overlay" id="bookingModal">
-    <div class="modal">
-      <h3>Book spot <span id="modalSpot"></span></h3>
-      <div class="row">
-        <label class="muted">Booked by</label>
-        <input id="bookedBy" />
-      </div>
-      <div class="row">
-        <label class="muted">Start date</label>
-        <input id="startAt" type="date" />
-      </div>
-      <div class="row">
-        <label class="muted">Duration</label>
-        <select id="durationDays">
-          <option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option>
-          <option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option>
-        </select>
-      </div>
-      <div class="actions">
-        <button class="btn-primary" id="saveBooking">Confirm booking</button>
-        <button id="cancelBooking">Cancel</button>
-      </div>
+  <div class="panel" style="margin-top:14px;"><div class="title">Bookings (selected floor)</div><table><thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
+</div>
+
+<div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password (min 8 chars)</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
+
+<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button id="loginClose">Close</button></div></div></div>
+
+<div class="overlay" id="bookingModal"><div class="modal" style="max-width:500px"><h3>Book spot <span id="modalSpot"></span></h3><div class="row"><label class="muted">Booked by user</label><select id="bookUser"></select></div><div class="row"><label class="muted">Start date</label><input id="startAt" type="date"/></div><div class="row"><label class="muted">Duration</label><select id="durationDays"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option></select></div><div class="actions"><button class="btn-primary" id="saveBooking">Confirm booking</button><button id="cancelBooking">Cancel</button></div></div></div>
+
+<div class="overlay" id="adminModal"><div class="modal"><h3>Admin Panel</h3>
+  <div class="grid2">
+    <div class="admin-block"><b>Users</b>
+      <div class="row"><input id="newUsername" placeholder="username"/><input id="newUserPassword" placeholder="password" type="password"/><label class="muted"><input id="newUserAdmin" type="checkbox"/> admin</label><button class="btn-primary" id="createUserBtn">Create user</button></div>
+      <div class="list" id="usersList"></div>
+    </div>
+    <div class="admin-block"><b>Floors</b>
+      <div class="row"><input id="floorName" placeholder="floor name"/><input id="floorImagePath" placeholder="image path (optional)"/><button class="btn-primary" id="createFloorBtn">Create floor</button></div>
+      <div class="list" id="floorsList"></div>
     </div>
   </div>
+  <div class="admin-block" style="margin-top:10px"><b>Spaces</b>
+    <div class="grid2">
+      <input id="spaceFloorId" placeholder="floor id"/><input id="spaceNumber" placeholder="space number"/>
+      <input id="spaceX" placeholder="x"/><input id="spaceY" placeholder="y"/>
+      <input id="spaceW" placeholder="w"/><input id="spaceH" placeholder="h"/>
+      <input id="spaceDir" placeholder="dir up/down"/><input id="spaceMapX" placeholder="mini x (optional)"/>
+      <input id="spaceMapY" placeholder="mini y (optional)"/><input id="spaceMapZoom" placeholder="mini zoom (optional)"/>
+    </div>
+    <div class="actions"><button class="btn-primary" id="createSpaceBtn">Create space</button><button id="adminClose">Close</button></div>
+  </div>
+</div></div>
 
-  <script>
-    function offsetH(h) { return new Date(Date.now() + h * 3600_000).toISOString(); }
+<script>
+const state = { token:'', me:null, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, panX:0, panY:0, baseX:50, baseY:50 };
+const $ = id => document.getElementById(id);
+const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString();
+const getViewDate = () => $('viewDate').value;
+const floor = () => Number($('floorSelect').value || 0);
 
-    const floors = {
-      '1': { name: 'Floor 1', spots: buildFloor1() },
-      '2': { name: 'Floor 2', spots: buildFloor2() }
-    };
-    const floorMaps = {
-      '1': './resources/parking-outside.png',
-      '2': './resources/parking-minus-two.png'
-    };
+async function api(path, opts={}) {
+  const h = { 'Content-Type':'application/json', ...(opts.headers||{}) };
+  if (state.token) h.Authorization = `Bearer ${state.token}`;
+  const r = await fetch(path, { ...opts, headers: h });
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
 
-    function toId(n) {
-      return String(n).padStart(3, '0');
-    }
+function dateAdd(date, days) { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 
-    function buildFloor1() {
-      const out = [];
-      for (let i = 0; i < 13; i++) out.push({ id: toId(i), x: 18 + i * 93, y: 160, w: 70, h: 170, dir: 'down' });
-      for (let i = 0; i < 7; i++) out.push({ id: toId(13 + i), x: 550 + i * 88, y: 485, w: 66, h: 165, dir: 'up' });
-      return out;
-    }
+function setAuthUI() {
+  $('currentUserLabel').textContent = `User: ${state.me ? state.me.username : 'guest'}`;
+  $('openAdminPanel').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
+  $('seedDemoBtn').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
+  $('logoutBtn').style.display = state.me ? 'inline-block' : 'none';
+}
 
-    function buildFloor2() {
-      const out = [];
-      for (let i = 0; i < 5; i++) out.push({ id: toId(20 + i), x: 170 + i * 95, y: 175, w: 72, h: 175, dir: 'down' });
-      for (let i = 0; i < 5; i++) out.push({ id: toId(25 + i), x: 610 + i * 95, y: 470, w: 72, h: 175, dir: 'up' });
-      return out;
-    }
+async function refreshAll() {
+  if (!state.token) return;
+  state.floors = await api('/api/floors');
+  renderFloorSelect();
+  if (!floor() && state.floors[0]) $('floorSelect').value = state.floors[0].id;
+  await refreshFloorData();
+  render();
+}
 
-    const bookings = [
-      { floor: '1', spotId: '003', user: 'Jonas', start: offsetH(-3), end: offsetH(36) },
-      { floor: '1', spotId: '012', user: 'Milda', start: offsetH(1), end: offsetH(49) },
-      { floor: '2', spotId: '021', user: 'Admin', start: offsetH(-2), end: offsetH(8) }
-    ];
+async function refreshFloorData() {
+  if (!floor()) return;
+  state.spaces = await api(`/api/spaces?floorId=${floor()}`);
+  state.availability = await api(`/api/availability?floorId=${floor()}&date=${encodeURIComponent(getViewDate())}`);
+  state.bookings = await api(`/api/bookings?floorId=${floor()}`);
+  if (state.me?.isAdmin) state.users = await api('/api/users');
+}
 
-    let selectedSpot = null;
-    let miniBaseX = 50;
-    let miniBaseY = 50;
-    let miniPanX = 0;
-    let miniPanY = 0;
-    let currentUser = 'Aidas';
+function renderFloorSelect() {
+  const v = floor();
+  $('floorSelect').innerHTML = state.floors.map(f => `<option value="${f.id}">${f.name}</option>`).join('') || '<option value="">No floors</option>';
+  if (v) $('floorSelect').value = String(v);
+}
 
-    function currentFloor() { return document.getElementById('floorSelect').value; }
-    function currentSpots() { return floors[currentFloor()].spots; }
-    function getViewTime() {
-      const raw = document.getElementById('viewDate').value;
-      if (!raw) return Date.now();
-      const t = new Date(`${raw}T12:00`).getTime();
-      return Number.isNaN(t) ? Date.now() : t;
-    }
+function currentFloorObj() { return state.floors.find(f => f.id === floor()); }
+function spotAt() { return state.availability.find(s => s.id === state.selectedSpot); }
 
-    function nowTick() {
-      document.getElementById('clock').textContent = new Date().toLocaleString();
-      releaseExpired();
-      render();
-    }
+function statusClass(s) {
+  if (!s?.isBooked) return 'free';
+  const view = new Date(`${getViewDate()}T12:00:00`).getTime();
+  const end = s.bookingEnd ? new Date(`${s.bookingEnd}T00:00:00`).getTime() : 0;
+  return (end - view) / 3600000 <= 12 ? 'soon' : 'booked';
+}
 
-    function releaseExpired() {
-      const now = Date.now();
-      for (let i = bookings.length - 1; i >= 0; i--) if (new Date(bookings[i].end).getTime() <= now) bookings.splice(i, 1);
-    }
+function renderMap() {
+  const layer = $('spotLayer'); layer.innerHTML = '';
+  const onlyFree = $('onlyFree').checked;
+  const search = $('search').value.trim().toLowerCase();
+  for (const s of state.availability) {
+    if (onlyFree && s.isBooked) continue;
+    if (search && (!s.bookingUser || !s.bookingUser.toLowerCase().includes(search))) continue;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class', `spot-group ${statusClass(s)} ${state.selectedSpot===s.id?'selected':''}`);
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('class','spot-rect'); rect.setAttribute('x', s.x ?? 20); rect.setAttribute('y', s.y ?? 160); rect.setAttribute('width', s.w ?? 72); rect.setAttribute('height', s.h ?? 170);
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('class','spot-label'); txt.setAttribute('x',(s.x??20)+(s.w??72)/2); txt.setAttribute('y',(s.y??160)+(s.h??170)/2); txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle'); txt.textContent=s.space_number;
+    g.append(rect,txt); g.onclick = ()=>{ state.selectedSpot=s.id; render(); }; layer.appendChild(g);
+  }
+}
 
-    function activeBookingFor(spotId, floor, atMs = getViewTime()) {
-      return bookings.find(b => {
-        if (b.floor !== floor || b.spotId !== spotId) return false;
-        const start = new Date(b.start).getTime();
-        const end = new Date(b.end).getTime();
-        return start <= atMs && atMs < end;
-      });
-    }
+function renderDetails() {
+  $('actions').innerHTML=''; $('details').innerHTML=''; $('mapMini').style.display='none';
+  const s = spotAt();
+  if (!s) { $('spotHint').textContent = 'Select a spot from the map'; return; }
+  const f = currentFloorObj();
+  $('spotHint').textContent = `${f?.name || ''} · Spot ${s.space_number}`;
+  $('details').innerHTML = `<div><b>Status:</b> ${s.isBooked?'Booked':'Free'}</div>${s.isBooked?`<div><b>User:</b> ${s.bookingUser}</div><div><b>End:</b> ${fmtDate(s.bookingEnd)}</div>`:''}`;
 
-    function statusClass(b, atMs = getViewTime()) {
-      if (!b) return 'free';
-      const hoursLeft = (new Date(b.end).getTime() - atMs) / 3600_000;
-      return hoursLeft <= 12 ? 'soon' : 'booked';
-    }
+  const map = $('mapMiniView');
+  map.style.backgroundImage = `url(${f?.image_path || './resources/parking-outside.png'})`;
+  state.baseX = s.map_x ?? (((s.x ?? 20) + (s.w ?? 72)/2)/1240)*100;
+  state.baseY = s.map_y ?? (((s.y ?? 160) + (s.h ?? 170)/2)/720)*100;
+  state.panX = 0; state.panY = 0;
+  updateMiniPos(s.map_zoom ?? 260);
+  $('mapMini').style.display='block'; $('mapMiniCaption').textContent = `Location on ${f?.name || 'floor'} (drag to explore)`;
 
-    function getFilteredIds() {
-      const onlyFree = document.getElementById('onlyFree').checked;
-      const search = document.getElementById('search').value.trim().toLowerCase();
-      const floor = currentFloor();
-      const ids = new Set();
-      for (const s of currentSpots()) {
-        const b = activeBookingFor(s.id, floor);
-        if (onlyFree && b) continue;
-        if (search && (!b || !b.user.toLowerCase().includes(search))) continue;
-        ids.add(s.id);
-      }
-      return ids;
-    }
+  if (!s.isBooked) {
+    const b = document.createElement('button'); b.className='btn-primary'; b.textContent='Book this spot'; b.onclick=openBookingModal; $('actions').appendChild(b);
+  }
+  if (s.isBooked && (state.me?.isAdmin || s.bookingOwnerId===state.me?.userId)) {
+    const r = document.createElement('button'); r.textContent='Release'; r.onclick=releaseBooking; $('actions').appendChild(r);
+  }
+}
 
-    function render() {
-      const floor = currentFloor();
-      document.getElementById('lotTitleB').textContent = `FLOOR ${floor}`;
-      document.getElementById('floorStats').textContent = `${floors[floor].name} · ${floors[floor].spots.length} spaces`;
-      document.getElementById('currentUserLabel').textContent = `User: ${currentUser || 'Unknown'}`;
-      renderMap();
-      renderDetails();
-      renderTable();
-    }
+function renderTable() {
+  const at = getViewDate();
+  $('bookingRows').innerHTML = state.bookings.map(b => {
+    const st = (b.start_date <= at && at < b.end_date) ? 'Active' : (b.start_date > at ? 'Booked' : 'Ended');
+    return `<tr><td>${b.space_number}</td><td>${b.username}</td><td>${fmtDate(b.start_date)}</td><td>${fmtDate(b.end_date)}</td><td>${st}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="muted">No bookings</td></tr>';
+}
 
-    function renderMap() {
-      const layer = document.getElementById('spotLayer');
-      const visible = getFilteredIds();
-      const floor = currentFloor();
-      layer.innerHTML = '';
+function render() {
+  const f = currentFloorObj();
+  $('floorStats').textContent = f ? `${f.name} · ${state.spaces.length} spaces` : 'No floor selected';
+  $('lotTitleB').textContent = f ? f.name.toUpperCase() : 'FLOOR';
+  renderMap(); renderDetails(); renderTable();
+}
 
-      for (const s of currentSpots()) {
-        if (!visible.has(s.id)) continue;
-        const b = activeBookingFor(s.id, floor);
-        const state = statusClass(b);
-        const g = createSvg('g', { class: `spot-group ${state} ${selectedSpot === s.id ? 'selected' : ''}` });
+function updateMiniPos(zoom=260) {
+  const map = $('mapMiniView');
+  const x = Math.max(0,Math.min(100,state.baseX + state.panX));
+  const y = Math.max(0,Math.min(100,state.baseY + state.panY));
+  map.style.backgroundPosition = `${x}% ${y}%`;
+  map.style.backgroundSize = `${zoom}%`;
+}
 
-        const rect = createSvg('rect', { class: 'spot-rect', x: s.x, y: s.y, width: s.w, height: s.h, rx: 7 });
-        const label = createSvg('text', {
-          class: 'spot-label',
-          x: s.x + s.w / 2,
-          y: s.y + s.h / 2,
-          'text-anchor': 'middle',
-          'dominant-baseline': 'middle'
-        });
-        label.textContent = s.id;
+async function openBookingModal() {
+  const s = spotAt(); if (!s) return;
+  $('modalSpot').textContent = s.space_number;
+  $('startAt').value = getViewDate();
+  if (state.me?.isAdmin) {
+    if (!state.users.length) state.users = await api('/api/users');
+    $('bookUser').innerHTML = state.users.map(u=>`<option value="${u.id}">${u.username}</option>`).join('');
+  } else {
+    $('bookUser').innerHTML = `<option value="${state.me.userId}">${state.me.username}</option>`;
+  }
+  $('bookingModal').style.display='flex';
+}
 
-        g.append(rect, label);
-        g.addEventListener('click', () => { selectedSpot = s.id; render(); });
-        layer.appendChild(g);
-      }
-    }
+async function saveBooking() {
+  const s = spotAt(); if (!s) return;
+  const start = $('startAt').value;
+  const days = Number($('durationDays').value||1);
+  if (!start) return alert('Select start date');
+  const end = dateAdd(start, days);
+  const payload = { floorId: floor(), spaceId: s.id, startDate:start, endDate:end };
+  if (state.me?.isAdmin) payload.userId = Number($('bookUser').value);
+  try { await api('/api/bookings', { method:'POST', body: JSON.stringify(payload) }); $('bookingModal').style.display='none'; await refreshFloorData(); render(); }
+  catch (e) { alert(e.message); }
+}
 
-    function createSvg(tag, attrs = {}) {
-      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
-      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-      return el;
-    }
+async function releaseBooking() {
+  const s = spotAt(); if (!s) return;
+  try {
+    await api('/api/bookings/release', { method:'POST', body: JSON.stringify({ spaceId: s.id, date: getViewDate(), userId: state.me?.isAdmin ? s.bookingOwnerId : undefined })});
+    await refreshFloorData(); render();
+  } catch (e) { alert(e.message); }
+}
 
-    function renderDetails() {
-      const hint = document.getElementById('spotHint');
-      const details = document.getElementById('details');
-      const actions = document.getElementById('actions');
-      const mapMini = document.getElementById('mapMini');
-      const mapMiniView = document.getElementById('mapMiniView');
-      const mapMiniCaption = document.getElementById('mapMiniCaption');
-      details.innerHTML = ''; actions.innerHTML = '';
-      mapMini.style.display = 'none';
-      if (!selectedSpot) return;
+async function doLogin() {
+  try {
+    const out = await api('/api/login', { method:'POST', body: JSON.stringify({ username: $('loginUser').value.trim(), password: $('loginPassword').value })});
+    state.token = out.token; state.me = { ...out.user, userId: out.user.id };
+    $('loginModal').style.display='none'; setAuthUI(); await refreshAll();
+  } catch (e) { alert(e.message); }
+}
 
-      const floor = currentFloor();
-      const spot = currentSpots().find(s => s.id === selectedSpot);
-      if (!spot) {
-        selectedSpot = null;
-        hint.textContent = 'Select a spot from the map';
-        return;
-      }
+async function checkBootstrap() {
+  const health = await api('/api/health');
+  if (health.needsBootstrap) $('bootstrapModal').style.display='flex';
+}
 
-      const b = activeBookingFor(selectedSpot, floor);
-      hint.textContent = `${floors[floor].name} · Spot ${selectedSpot}`;
+async function createAdmin() {
+  try { await api('/api/bootstrap', { method:'POST', body: JSON.stringify({ adminPassword: $('bootstrapPassword').value })}); $('bootstrapModal').style.display='none'; alert('Admin created. Login as admin.'); $('loginModal').style.display='flex'; }
+  catch (e) { alert(e.message); }
+}
 
-      const rows = [`<div><b>Status:</b> ${b ? 'Booked' : 'Free'}</div>`];
-      if (b) {
-        rows.push(`<div><b>User:</b> ${b.user}</div>`);
-        rows.push(`<div><b>Start:</b> ${new Date(b.start).toLocaleDateString()}</div>`);
-        rows.push(`<div><b>End:</b> ${new Date(b.end).toLocaleDateString()}</div>`);
-      }
-      details.innerHTML = rows.join('');
+async function loadAdminLists() {
+  state.users = await api('/api/users');
+  const floors = await api('/api/floors');
+  $('usersList').innerHTML = state.users.map(u => `<div>${u.username} ${u.isAdmin?'(admin)':''} ${u.isBuiltinAdmin?'':'<button onclick="toggleRole('+u.id+','+(!u.isAdmin)+')">role</button> <button onclick="resetPw('+u.id+')">reset pw</button> <button class=\"danger\" onclick=\"delUser('+u.id+')\">delete</button>'}</div>`).join('') || '<div>No users</div>';
+  $('floorsList').innerHTML = floors.map(f => `<div>#${f.id} ${f.name} <button onclick="delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
+}
 
-      miniBaseX = ((spot.x + spot.w / 2) / 1240) * 100;
-      miniBaseY = ((spot.y + spot.h / 2) / 720) * 100;
-      miniPanX = 0;
-      miniPanY = 0;
-      mapMiniView.style.backgroundImage = `url(${floorMaps[floor]})`;
-      updateMiniMapPosition();
-      mapMiniCaption.textContent = `Selected place location on ${floors[floor].name} (drag to explore)`;
-      mapMini.style.display = 'block';
+async function toggleRole(id, isAdmin) { try { await api(`/api/users/${id}`, { method:'PATCH', body: JSON.stringify({ isAdmin })}); await loadAdminLists(); } catch(e){alert(e.message);} }
+async function resetPw(id) { try { const r=await api(`/api/users/${id}/reset-password`, { method:'POST' }); alert(`Temporary password: ${r.temporaryPassword}`);} catch(e){alert(e.message);} }
+async function delUser(id) { if(!confirm('Delete user?')) return; try { await api(`/api/users/${id}`, { method:'DELETE' }); await loadAdminLists(); } catch(e){alert(e.message);} }
+async function delFloor(id) { if(!confirm('Delete floor?')) return; try { await api(`/api/floors/${id}`, { method:'DELETE' }); await loadAdminLists(); await refreshAll(); } catch(e){alert(e.message);} }
+window.toggleRole = toggleRole; window.resetPw = resetPw; window.delUser = delUser; window.delFloor = delFloor;
 
-      if (!b) {
-        const bookBtn = document.createElement('button');
-        bookBtn.textContent = 'Book this spot';
-        bookBtn.className = 'btn-primary';
-        bookBtn.onclick = openBookingModal;
-        actions.appendChild(bookBtn);
-      }
+async function createUser() {
+  try { await api('/api/users', { method:'POST', body: JSON.stringify({ username:$('newUsername').value.trim(), password:$('newUserPassword').value, isAdmin:$('newUserAdmin').checked })}); $('newUsername').value=''; $('newUserPassword').value=''; $('newUserAdmin').checked=false; await loadAdminLists(); }
+  catch(e){alert(e.message);} }
 
-      if (b && canRelease(b)) {
-        const releaseBtn = document.createElement('button');
-        releaseBtn.textContent = 'Release';
-        releaseBtn.onclick = () => {
-          const idx = bookings.findIndex(x => x.floor === floor && x.spotId === selectedSpot && x.end === b.end);
-          if (idx >= 0) bookings.splice(idx, 1);
-          render();
-        };
-        actions.appendChild(releaseBtn);
-      }
-    }
+async function createFloor() {
+  try { await api('/api/floors', { method:'POST', body: JSON.stringify({ name:$('floorName').value.trim(), imagePath:$('floorImagePath').value.trim() })}); $('floorName').value=''; $('floorImagePath').value=''; await loadAdminLists(); await refreshAll(); }
+  catch(e){alert(e.message);} }
 
-    function updateMiniMapPosition() {
-      const mapMiniView = document.getElementById('mapMiniView');
-      const x = Math.max(0, Math.min(100, miniBaseX + miniPanX));
-      const y = Math.max(0, Math.min(100, miniBaseY + miniPanY));
-      mapMiniView.style.backgroundPosition = `${x}% ${y}%`;
-    }
+async function createSpace() {
+  const n = v => v === '' ? undefined : Number(v);
+  try {
+    await api('/api/spaces', { method:'POST', body: JSON.stringify({ floorId:Number($('spaceFloorId').value), spaceNumber:$('spaceNumber').value.trim(), x:n($('spaceX').value), y:n($('spaceY').value), w:n($('spaceW').value), h:n($('spaceH').value), dir:$('spaceDir').value.trim() || undefined, mapX:n($('spaceMapX').value), mapY:n($('spaceMapY').value), mapZoom:n($('spaceMapZoom').value) })});
+    ['spaceFloorId','spaceNumber','spaceX','spaceY','spaceW','spaceH','spaceDir','spaceMapX','spaceMapY','spaceMapZoom'].forEach(id=>$(id).value='');
+    await refreshFloorData(); render();
+  } catch(e){alert(e.message);} }
 
-    function canRelease(b) {
-      if (!b) return false;
-      const me = currentUser.trim().toLowerCase();
-      if (document.getElementById('isAdmin').checked) return true;
-      return b.user.trim().toLowerCase() === me;
-    }
+async function seedDemo() { try { await api('/api/seed-demo', { method:'POST' }); await refreshAll(); } catch(e){alert(e.message);} }
 
-    function renderTable() {
-      const rows = document.getElementById('bookingRows');
-      const floor = currentFloor();
-      const atMs = getViewTime();
-      const sorted = bookings.filter(b => b.floor === floor).sort((a, b) => new Date(a.start) - new Date(b.start));
-      rows.innerHTML = sorted.map(b => {
-        const startMs = new Date(b.start).getTime();
-        const endMs = new Date(b.end).getTime();
-        const status = startMs <= atMs && atMs < endMs ? 'Active' : (startMs > atMs ? 'Booked' : 'Ended');
-        return `<tr><td>${b.spotId}</td><td>${b.user}</td><td>${new Date(b.start).toLocaleDateString()}</td><td>${new Date(b.end).toLocaleDateString()}</td><td>${status}</td></tr>`;
-      }).join('') || `<tr><td colspan="5" class="muted">No bookings</td></tr>`;
-    }
+(function init(){
+  const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('viewDate').value = d.toISOString().slice(0,10);
+  setInterval(()=>{$('clock').textContent = new Date().toLocaleString();},1000); $('clock').textContent = new Date().toLocaleString();
 
-    function openLoginModal() {
-      document.getElementById('loginModal').style.display = 'flex';
-      document.getElementById('loginUser').value = currentUser;
-      document.getElementById('loginPassword').value = '';
-    }
+  $('openLoginPanel').onclick = ()=> $('loginModal').style.display='flex'; $('loginClose').onclick = ()=> $('loginModal').style.display='none'; $('loginConfirm').onclick = doLogin;
+  $('logoutBtn').onclick = ()=>{ state.token=''; state.me=null; state.floors=[]; state.spaces=[]; state.bookings=[]; state.availability=[]; state.selectedSpot=null; setAuthUI(); renderFloorSelect(); render(); };
+  $('bootstrapConfirm').onclick = createAdmin;
+  $('openAdminPanel').onclick = async ()=>{ $('adminModal').style.display='flex'; await loadAdminLists(); };
+  $('adminClose').onclick = ()=> $('adminModal').style.display='none';
+  $('createUserBtn').onclick = createUser; $('createFloorBtn').onclick = createFloor; $('createSpaceBtn').onclick = createSpace;
+  $('seedDemoBtn').onclick = seedDemo;
 
-    function closeLoginModal() {
-      document.getElementById('loginModal').style.display = 'none';
-    }
+  $('saveBooking').onclick = saveBooking; $('cancelBooking').onclick = ()=> $('bookingModal').style.display='none';
+  $('clearFilters').onclick = ()=>{ $('onlyFree').checked=false; $('search').value=''; const d2=new Date(); d2.setMinutes(d2.getMinutes()-d2.getTimezoneOffset()); $('viewDate').value=d2.toISOString().slice(0,10); if(state.token) refreshFloorData().then(render); };
+  $('floorSelect').addEventListener('change', async ()=>{ state.selectedSpot=null; await refreshFloorData(); render(); });
+  ['viewDate','onlyFree','search'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
 
-    function registerLogin(name, password) {
-      if (!name || !password) return;
-      currentUser = name.trim();
-      render();
-    }
+  ['bootstrapModal','loginModal','bookingModal','adminModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
 
-    function openBookingModal() {
-      if (!selectedSpot) return;
-      document.getElementById('bookingModal').style.display = 'flex';
-      document.getElementById('modalSpot').textContent = selectedSpot;
-      document.getElementById('bookedBy').value = currentUser || 'Unknown';
-      const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-      document.getElementById('startAt').value = d.toISOString().slice(0,10);
-      document.getElementById('durationDays').value = '1';
-    }
+  (function dragMini(){
+    const view = $('mapMiniView'); let drag=false,sx=0,sy=0,px=0,py=0;
+    const down=(x,y)=>{drag=true;view.classList.add('dragging');sx=x;sy=y;px=state.panX;py=state.panY};
+    const move=(x,y)=>{if(!drag)return;const r=view.getBoundingClientRect();state.panX=px-(x-sx)/r.width*100;state.panY=py-(y-sy)/r.height*100;updateMiniPos(spotAt()?.map_zoom ?? 260)};
+    const up=()=>{drag=false;view.classList.remove('dragging')};
+    view.addEventListener('mousedown',e=>down(e.clientX,e.clientY)); window.addEventListener('mousemove',e=>move(e.clientX,e.clientY)); window.addEventListener('mouseup',up);
+    view.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)down(t.clientX,t.clientY)}); view.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)move(t.clientX,t.clientY)}); window.addEventListener('touchend',up);
+  })();
 
-    function closeBookingModal() { document.getElementById('bookingModal').style.display = 'none'; }
-
-    document.getElementById('saveBooking').onclick = () => {
-      const floor = currentFloor();
-      const user = document.getElementById('bookedBy').value.trim();
-      const startRaw = document.getElementById('startAt').value;
-      const start = new Date(`${startRaw}T00:00`);
-      const days = Number(document.getElementById('durationDays').value);
-      if (!user || Number.isNaN(start.getTime()) || days < 1 || days > 7) return;
-      const end = new Date(start.getTime() + days * 24 * 3600_000);
-      const hasOverlap = bookings.some(b => {
-        if (b.floor !== floor || b.spotId !== selectedSpot) return false;
-        const bStart = new Date(b.start).getTime();
-        const bEnd = new Date(b.end).getTime();
-        return start.getTime() < bEnd && bStart < end.getTime();
-      });
-      if (hasOverlap) return alert('Spot is already booked in selected period');
-      bookings.push({ floor, spotId: selectedSpot, user, start: start.toISOString(), end: end.toISOString() });
-      closeBookingModal(); render();
-    };
-
-    document.getElementById('cancelBooking').onclick = closeBookingModal;
-    document.getElementById('bookingModal').onclick = (e) => { if (e.target.id === 'bookingModal') closeBookingModal(); };
-
-    document.getElementById('openLoginPanel').onclick = openLoginModal;
-    document.getElementById('loginClose').onclick = closeLoginModal;
-    document.getElementById('loginModal').onclick = (e) => { if (e.target.id === 'loginModal') closeLoginModal(); };
-    document.getElementById('loginConfirm').onclick = () => {
-      const name = document.getElementById('loginUser').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      if (!name || !password) return;
-      registerLogin(name, password);
-      closeLoginModal();
-    };
-
-    const submitLoginOnEnter = (e) => {
-      if (e.key !== 'Enter') return;
-      const name = document.getElementById('loginUser').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      if (!name || !password) return;
-      registerLogin(name, password);
-      closeLoginModal();
-    };
-    document.getElementById('loginUser').addEventListener('keydown', submitLoginOnEnter);
-    document.getElementById('loginPassword').addEventListener('keydown', submitLoginOnEnter);
-
-    document.getElementById('clearFilters').onclick = () => {
-      document.getElementById('onlyFree').checked = false;
-      document.getElementById('search').value = '';
-      const d = new Date();
-      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-      document.getElementById('viewDate').value = d.toISOString().slice(0,10);
-      render();
-    };
-
-    document.getElementById('floorSelect').addEventListener('change', () => {
-      selectedSpot = null;
-      render();
-    });
-
-    ['onlyFree','search','isAdmin','viewDate'].forEach(id => {
-      document.getElementById(id).addEventListener('input', render);
-      document.getElementById(id).addEventListener('change', render);
-    });
-
-    (function initMiniMapDrag() {
-      const view = document.getElementById('mapMiniView');
-      let dragging = false;
-      let startX = 0;
-      let startY = 0;
-      let startPanX = 0;
-      let startPanY = 0;
-
-      const pointerDown = (clientX, clientY) => {
-        dragging = true;
-        view.classList.add('dragging');
-        startX = clientX;
-        startY = clientY;
-        startPanX = miniPanX;
-        startPanY = miniPanY;
-      };
-
-      const pointerMove = (clientX, clientY) => {
-        if (!dragging) return;
-        const rect = view.getBoundingClientRect();
-        const dx = clientX - startX;
-        const dy = clientY - startY;
-        miniPanX = startPanX - (dx / rect.width) * 100;
-        miniPanY = startPanY - (dy / rect.height) * 100;
-        updateMiniMapPosition();
-      };
-
-      const pointerUp = () => {
-        dragging = false;
-        view.classList.remove('dragging');
-      };
-
-      view.addEventListener('mousedown', (e) => pointerDown(e.clientX, e.clientY));
-      window.addEventListener('mousemove', (e) => pointerMove(e.clientX, e.clientY));
-      window.addEventListener('mouseup', pointerUp);
-
-      view.addEventListener('touchstart', (e) => {
-        const t = e.touches[0];
-        if (!t) return;
-        pointerDown(t.clientX, t.clientY);
-      }, { passive: true });
-
-      view.addEventListener('touchmove', (e) => {
-        const t = e.touches[0];
-        if (!t) return;
-        pointerMove(t.clientX, t.clientY);
-      }, { passive: true });
-
-      window.addEventListener('touchend', pointerUp, { passive: true });
-    })();
-
-    const initialViewDate = new Date();
-    initialViewDate.setMinutes(initialViewDate.getMinutes() - initialViewDate.getTimezoneOffset());
-    document.getElementById('viewDate').value = initialViewDate.toISOString().slice(0,10);
-
-    setInterval(nowTick, 30_000);
-    nowTick();
-  </script>
+  checkBootstrap();
+})();
+</script>
 </body>
 </html>

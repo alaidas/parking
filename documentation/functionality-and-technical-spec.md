@@ -1,122 +1,115 @@
-# Parking System — Functionality and Technical Spec
+# Functionality and Technical Specification
 
 _Last updated: 2026-02-24_
 
-This document reflects the current implementation in `src/server.js`.
+## Overview
+This solution now includes:
+- Backend API (`src/server.js`) with SQLite persistence
+- Frontend (`index.html`) connected to API (no in-memory mock data)
+- First-run bootstrap flow for admin creation
 
-## 1. Implemented Functionality
+---
 
-## 1.1 Authentication & Users
+## Implemented Functional Scope
 
+### 1) Login and users
 Implemented:
-- Login with username/password: `POST /api/login`
-- First system run bootstrap: `POST /api/bootstrap` creates fixed username `admin`
-- Roles: admin and simple user (`is_admin`)
-- Admin can create/update/delete users:
-  - `POST /api/users`
-  - `PATCH /api/users/:id` (role update)
-  - `DELETE /api/users/:id`
-- Admin can reset any user password:
-  - `POST /api/users/:id/reset-password`
-  - Generates random 6-char simple password and returns once in response
-- Simple user can change own password:
-  - `POST /api/me/change-password`
+- Two user types: admin and simple user.
+- Admin can create/update/delete users.
+- Admin can reset any user password (one-time returned 6-char password).
+- Simple user can change only own password.
+- Built-in `admin` user is created on first run, username fixed, protected from delete/role change.
 
-Implemented constraints:
-- Built-in `admin` username is created on bootstrap and protected:
-  - cannot be deleted
-  - role cannot be changed
+Frontend coverage:
+- Login modal (user/password)
+- Current user display near Login/Logout
+- Admin Panel with user create/delete/role toggle/password reset
 
-## 1.2 Floors and Parking Spaces
-
+### 2) Floors and parking spaces
 Implemented:
-- Admin floor CRUD:
-  - `POST /api/floors`
-  - `PATCH /api/floors/:id`
-  - `DELETE /api/floors/:id`
-- Admin parking space CRUD:
-  - `POST /api/spaces`
-  - `PATCH /api/spaces/:id`
-  - `DELETE /api/spaces/:id`
-- Space uniqueness guaranteed by DB constraint: `UNIQUE(floor_id, space_number)`
-- Optional per-space map mini defaults stored:
-  - `map_x`, `map_y`, `map_zoom`
+- No hardcoded runtime floors/spaces required.
+- Admin can create/update/delete floors.
+- Floor image path can be stored.
+- Admin can create/update/delete spaces per floor.
+- Unique `(floor_id, space_number)` enforced in DB.
+- Space visual fields are stored (`x,y,w,h,dir`) and mini defaults (`map_x,map_y,map_zoom`).
 
-## 1.3 Booking / Releasing
+Frontend coverage:
+- Admin Panel floor management
+- Admin Panel space creation with map coordinates/defaults
+- Floor map rendering based on DB spaces
 
+### 3) Booking and releasing
 Implemented:
-- Date-based availability for a floor:
-  - `GET /api/availability?floorId=<id>&date=YYYY-MM-DD`
-- Booking creation:
-  - `POST /api/bookings`
-- Releasing by date:
-  - `POST /api/bookings/release`
+- Date-only filter drives current parking view.
+- Admin can book for any user.
+- Simple user books only for self.
+- Admin can release any booking for selected date.
+- Simple user can release only own booking.
+- Overlap checks:
+  - same space overlap blocked
+  - simple user cannot hold overlapping bookings
 
-Implemented rules:
-- Admin can book on behalf of any user (optional `userId` in request).
-- Simple user can book only for self.
-- Space overlapping bookings are blocked.
-- Simple user cannot hold overlapping bookings across spaces.
-- Simple user can release only own booking at given date.
-- Admin can release any booking at given date; optional `userId` check supported.
+Frontend coverage:
+- Date filter in toolbar
+- Book/Release button visibility by permissions
+- Bookings table with short statuses: Active / Booked / Ended
 
-## 2. Technical Setup (Implemented)
+---
 
-## 2.1 Stack
+## Technical Implementation
+
+### Stack
 - Node.js + Express
-- SQLite via `better-sqlite3`
-- Password hashing via `bcryptjs`
+- SQLite (`better-sqlite3`)
+- Password hashing (`bcryptjs`)
 
-## 2.2 Source Structure
-- `src/server.js` — API server and startup logic
-- `documentation/functionality-and-technical-spec.md` — this doc
-- `.gitignore` excludes secrets/database/runtime artifacts
+### Main files
+- `src/server.js` — API + DB bootstrap/migrations + static hosting
+- `index.html` — UI connected to API
+- `resources/` — floor images
+- `documentation/` — specs and install docs
 
-## 2.3 Database & First Run
+### DB and startup rules
+- DB file: `data/parking.sqlite3`
+- DB key file: `secrets/db-access.key`
+- First run (no DB):
+  - DB is created
+  - strong key generated and stored in secrets
+  - admin must be created via bootstrap endpoint/UI
+- Existing DB:
+  - key hash is validated
+  - if key mismatch/missing on existing DB: startup fails
+  - DB is never recreated/overwritten in that case
 
-Implemented behavior:
-- DB path: `data/parking.sqlite3`
-- If DB file is missing:
-  - creates DB and schema
-  - generates strong random DB access key and stores in `secrets/db-access.key`
-  - requires bootstrap of initial admin via `/api/bootstrap`
-- If DB exists:
-  - key file must exist and match stored hash in DB (`meta.db_key_hash`)
-  - if mismatch/missing key, startup fails
+### Security requirements implemented
+- No hardcoded credentials in source.
+- `data/`, `secrets/`, `.env` ignored by git.
+- Passwords stored as bcrypt hashes.
 
-Safety behavior:
-- DB is never deleted/overwritten by application logic.
-- If DB exists and access/authorization fails, service fails fast and does not recreate DB.
-- If DB is missing but key exists, existing key is reused.
+---
 
-## 2.4 Security Notes
-- No hardcoded passwords/tokens in source.
-- Secrets and DB files are git-ignored:
-  - `secrets/`
-  - `data/`
-  - `.env`
-- Passwords are stored hashed (bcrypt), never plaintext.
-
-## 3. API Summary
-
+## API Surface
 - `GET /api/health`
 - `POST /api/bootstrap`
 - `POST /api/login`
+- `GET /api/me`
+- `GET /api/users` (admin)
 - `POST /api/users` (admin)
 - `PATCH /api/users/:id` (admin)
 - `DELETE /api/users/:id` (admin)
 - `POST /api/users/:id/reset-password` (admin)
 - `POST /api/me/change-password`
+- `GET /api/floors`
 - `POST /api/floors` (admin)
 - `PATCH /api/floors/:id` (admin)
 - `DELETE /api/floors/:id` (admin)
+- `GET /api/spaces?floorId=<id>`
 - `POST /api/spaces` (admin)
 - `PATCH /api/spaces/:id` (admin)
 - `DELETE /api/spaces/:id` (admin)
-- `GET /api/availability`
+- `GET /api/bookings?floorId=<id>`
+- `GET /api/availability?floorId=<id>&date=YYYY-MM-DD`
 - `POST /api/bookings`
 - `POST /api/bookings/release`
-
-## 4. Notes
-- Frontend mock (`index.html`) is still separate and not yet wired to API endpoints.
-- Next step: connect mock UI actions to these APIs and replace in-memory data.
+- `POST /api/seed-demo` (admin convenience endpoint)
