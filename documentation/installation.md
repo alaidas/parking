@@ -65,8 +65,18 @@ Restoring only one of them is not enough.
 
 ## 8) Microsoft SSO setup (optional)
 
+### Microsoft tenant quick setup (short guide)
+1. Go to Azure Portal: <https://portal.azure.com>
+2. Open **Microsoft Entra ID**.
+3. If you do not have a tenant yet:
+   - click **Manage tenants** → **Create**
+   - choose **Microsoft Entra ID**
+   - provide Organization name + Initial domain + Region
+   - create tenant and switch into it
+4. Copy your **Tenant ID** from tenant **Overview**.
+
 ### Azure App Registration
-1. In Microsoft Entra ID, create an **App registration**.
+1. In Microsoft Entra ID, open **App registrations** → **New registration**.
 2. Add Web redirect URI:
    - `http://localhost:3000/api/auth/microsoft/callback`
 3. Create a client secret.
