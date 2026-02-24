@@ -78,7 +78,7 @@
     }
     .map-mini-view {
       position: relative;
-      height: 280px;
+      height: 340px;
       background-size: 260%;
       background-repeat: no-repeat;
       background-position: center;
@@ -120,6 +120,16 @@
     }
     .modal h3 { margin: 0 0 12px; }
     .row { display: grid; gap: 8px; margin-bottom: 10px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .current-user-pill {
+      font-size: 12px;
+      color: #cfe0ff;
+      border: 1px solid #31426f;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #0f1833;
+      white-space: nowrap;
+    }
     @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -130,7 +140,11 @@
         <div class="title">Parking Booking Dashboard <span class="muted">POC Mock</span></div>
         <div class="muted" id="floorStats">Floor 1 · 20 spaces</div>
       </div>
-      <div class="muted" id="clock"></div>
+      <div class="header-actions">
+        <button id="openLoginPanel">Login</button>
+        <span class="current-user-pill" id="currentUserLabel">User: Aidas</span>
+        <div class="muted" id="clock"></div>
+      </div>
     </div>
 
     <div class="panel toolbar">
@@ -138,7 +152,6 @@
         <option value="1">Floor 1 (20 spaces)</option>
         <option value="2">Floor 2 (10 spaces)</option>
       </select>
-      <input id="currentUser" placeholder="Your name (e.g. Aidas)" value="Aidas" />
       <label class="muted"><input type="checkbox" id="isAdmin" /> Admin mode</label>
       <label class="muted"><input type="checkbox" id="onlyFree" /> Only free</label>
       <input id="search" placeholder="Search booked by user" />
@@ -197,6 +210,24 @@
         <thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
         <tbody id="bookingRows"></tbody>
       </table>
+    </div>
+  </div>
+
+  <div class="overlay" id="loginModal">
+    <div class="modal">
+      <h3>User login panel</h3>
+      <div class="row">
+        <label class="muted">User</label>
+        <input id="loginUser" placeholder="Enter user" />
+      </div>
+      <div class="row">
+        <label class="muted">Password</label>
+        <input id="loginPassword" type="password" placeholder="Enter password" />
+      </div>
+      <div class="actions">
+        <button class="btn-primary" id="loginConfirm">Log in</button>
+        <button id="loginClose">Close</button>
+      </div>
     </div>
   </div>
 
@@ -266,6 +297,7 @@
     let miniBaseY = 50;
     let miniPanX = 0;
     let miniPanY = 0;
+    let currentUser = 'Aidas';
 
     function currentFloor() { return document.getElementById('floorSelect').value; }
     function currentSpots() { return floors[currentFloor()].spots; }
@@ -311,6 +343,7 @@
       const floor = currentFloor();
       document.getElementById('lotTitleB').textContent = `FLOOR ${floor}`;
       document.getElementById('floorStats').textContent = `${floors[floor].name} · ${floors[floor].spots.length} spaces`;
+      document.getElementById('currentUserLabel').textContent = `User: ${currentUser || 'Unknown'}`;
       renderMap();
       renderDetails();
       renderTable();
@@ -389,18 +422,24 @@
       mapMiniCaption.textContent = `Selected place location on ${floors[floor].name} (drag to explore)`;
       mapMini.style.display = 'block';
 
-      const bookBtn = document.createElement('button');
-      bookBtn.textContent = 'Book this spot'; bookBtn.className = 'btn-primary';
-      bookBtn.disabled = !!b; bookBtn.onclick = openBookingModal; actions.appendChild(bookBtn);
+      if (!b) {
+        const bookBtn = document.createElement('button');
+        bookBtn.textContent = 'Book this spot';
+        bookBtn.className = 'btn-primary';
+        bookBtn.onclick = openBookingModal;
+        actions.appendChild(bookBtn);
+      }
 
-      const releaseBtn = document.createElement('button');
-      releaseBtn.textContent = 'Release'; releaseBtn.disabled = !canRelease(b);
-      releaseBtn.onclick = () => {
-        const idx = bookings.findIndex(x => x.floor === floor && x.spotId === selectedSpot && x.end === b.end);
-        if (idx >= 0) bookings.splice(idx, 1);
-        render();
-      };
-      actions.appendChild(releaseBtn);
+      if (b && canRelease(b)) {
+        const releaseBtn = document.createElement('button');
+        releaseBtn.textContent = 'Release';
+        releaseBtn.onclick = () => {
+          const idx = bookings.findIndex(x => x.floor === floor && x.spotId === selectedSpot && x.end === b.end);
+          if (idx >= 0) bookings.splice(idx, 1);
+          render();
+        };
+        actions.appendChild(releaseBtn);
+      }
     }
 
     function updateMiniMapPosition() {
@@ -412,7 +451,7 @@
 
     function canRelease(b) {
       if (!b) return false;
-      const me = document.getElementById('currentUser').value.trim().toLowerCase();
+      const me = currentUser.trim().toLowerCase();
       if (document.getElementById('isAdmin').checked) return true;
       return b.user.trim().toLowerCase() === me;
     }
@@ -427,11 +466,27 @@
       }).join('') || `<tr><td colspan="5" class="muted">No bookings</td></tr>`;
     }
 
+    function openLoginModal() {
+      document.getElementById('loginModal').style.display = 'flex';
+      document.getElementById('loginUser').value = currentUser;
+      document.getElementById('loginPassword').value = '';
+    }
+
+    function closeLoginModal() {
+      document.getElementById('loginModal').style.display = 'none';
+    }
+
+    function registerLogin(name, password) {
+      if (!name || !password) return;
+      currentUser = name.trim();
+      render();
+    }
+
     function openBookingModal() {
       if (!selectedSpot) return;
       document.getElementById('bookingModal').style.display = 'flex';
       document.getElementById('modalSpot').textContent = selectedSpot;
-      document.getElementById('bookedBy').value = document.getElementById('currentUser').value.trim() || 'Unknown';
+      document.getElementById('bookedBy').value = currentUser || 'Unknown';
       const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
       document.getElementById('startAt').value = d.toISOString().slice(0,16);
       document.getElementById('durationDays').value = '1';
@@ -454,6 +509,28 @@
     document.getElementById('cancelBooking').onclick = closeBookingModal;
     document.getElementById('bookingModal').onclick = (e) => { if (e.target.id === 'bookingModal') closeBookingModal(); };
 
+    document.getElementById('openLoginPanel').onclick = openLoginModal;
+    document.getElementById('loginClose').onclick = closeLoginModal;
+    document.getElementById('loginModal').onclick = (e) => { if (e.target.id === 'loginModal') closeLoginModal(); };
+    document.getElementById('loginConfirm').onclick = () => {
+      const name = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if (!name || !password) return;
+      registerLogin(name, password);
+      closeLoginModal();
+    };
+
+    const submitLoginOnEnter = (e) => {
+      if (e.key !== 'Enter') return;
+      const name = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if (!name || !password) return;
+      registerLogin(name, password);
+      closeLoginModal();
+    };
+    document.getElementById('loginUser').addEventListener('keydown', submitLoginOnEnter);
+    document.getElementById('loginPassword').addEventListener('keydown', submitLoginOnEnter);
+
     document.getElementById('clearFilters').onclick = () => {
       document.getElementById('onlyFree').checked = false;
       document.getElementById('search').value = '';
@@ -465,7 +542,7 @@
       render();
     });
 
-    ['onlyFree','search','currentUser','isAdmin'].forEach(id => {
+    ['onlyFree','search','isAdmin'].forEach(id => {
       document.getElementById(id).addEventListener('input', render);
       document.getElementById(id).addEventListener('change', render);
     });
