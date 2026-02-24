@@ -19,11 +19,15 @@ Implemented:
 - Admin can reset any user password (one-time returned 6-char password).
 - Simple user can change only own password.
 - Built-in `admin` user is created on first run, username fixed, protected from delete/role change.
+- Optional Microsoft SSO login flow.
+- Admin can enable/disable Microsoft SSO from Admin panel.
+- When SSO user logs in first time, user is auto-created from token claims.
 
 Frontend coverage:
-- Login modal (user/password)
+- Login modal (user/password + Microsoft SSO button when enabled)
 - Current user display near Login/Logout
 - Admin Panel with user create/delete/role toggle/password reset
+- Admin SSO toggle in Users tab
 
 ### 2) Floors and parking spaces
 Implemented:
@@ -94,6 +98,11 @@ Frontend coverage:
 - `POST /api/bootstrap`
 - `POST /api/login`
 - `GET /api/me`
+- `GET /api/auth/sso/status`
+- `GET /api/auth/microsoft/start`
+- `GET /api/auth/microsoft/callback`
+- `GET /api/admin/sso` (admin)
+- `POST /api/admin/sso/toggle` (admin)
 - `GET /api/users` (admin)
 - `POST /api/users` (admin)
 - `PATCH /api/users/:id` (admin)

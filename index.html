@@ -71,7 +71,7 @@
 
 <div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password (min 4 chars)</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
 
-<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button id="loginClose">Close</button></div></div></div>
+<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="muted" id="ssoHint" style="display:none; margin-bottom:8px;">Microsoft SSO is available. You can use either SSO or user/password.</div><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button id="loginMicrosoft" style="display:none">Continue with Microsoft</button><button id="loginClose">Close</button></div></div></div>
 
 <div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password (min 4 chars)</label><input id="newPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
 
@@ -89,6 +89,10 @@
 
   <div class="admin-tab-pane" id="tab-users">
     <div class="admin-block"><b>Users</b>
+      <div class="actions" style="margin-bottom:8px;">
+        <button id="toggleSsoBtn">Enable Microsoft SSO</button>
+        <span class="muted" id="ssoStatusLabel">SSO: disabled</span>
+      </div>
       <div id="userEditor" style="display:none; margin-bottom:10px;">
         <div class="row">
           <input id="newUsername" placeholder="user id"/>
@@ -155,7 +159,7 @@
 </div></div>
 
 <script>
-const state = { token:'', me:null, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50 };
+const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50 };
 const $ = id => document.getElementById(id);
 const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString();
 const getViewDate = () => $('viewDate').value;
@@ -230,9 +234,19 @@ function setAuthUI() {
   $('openAdminPanel').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
   $('openChangePasswordPanel').style.display = state.me ? 'inline-block' : 'none';
   $('logoutBtn').style.display = state.me ? 'inline-block' : 'none';
+  $('loginMicrosoft').style.display = state.ssoEnabled ? 'inline-block' : 'none';
+  $('ssoHint').style.display = state.ssoEnabled ? 'block' : 'none';
+}
+
+async function refreshSsoStatus() {
+  const st = await api('/api/auth/sso/status');
+  state.ssoEnabled = !!st.enabled;
+  state.ssoConfigured = !!st.configured;
+  setAuthUI();
 }
 
 async function refreshAll() {
+  await refreshSsoStatus();
   state.floors = await api('/api/floors');
   renderFloorSelect();
   if (!floor() && state.floors[0]) $('floorSelect').value = state.floors[0].id;
@@ -480,6 +494,10 @@ async function changePassword() {
   }
 }
 
+function startMicrosoftLogin() {
+  window.location.href = '/api/auth/microsoft/start';
+}
+
 async function doLogin() {
   try {
     const out = await api('/api/login', { method:'POST', body: JSON.stringify({ username: $('loginUser').value.trim(), password: $('loginPassword').value })});
@@ -552,6 +570,13 @@ function switchAdminTab(tabName) {
 }
 
 async function loadAdminLists() {
+  const sso = await api('/api/admin/sso');
+  state.ssoEnabled = !!sso.enabled;
+  state.ssoConfigured = !!sso.configured;
+  $('ssoStatusLabel').textContent = `SSO: ${state.ssoEnabled ? 'enabled' : 'disabled'}${state.ssoConfigured ? '' : ' (not configured)'}`;
+  $('toggleSsoBtn').textContent = state.ssoEnabled ? 'Disable Microsoft SSO' : 'Enable Microsoft SSO';
+  $('toggleSsoBtn').disabled = !state.ssoConfigured && !state.ssoEnabled;
+
   state.users = await api('/api/users');
   const floors = await api('/api/floors');
   state.floors = floors;
@@ -600,6 +625,14 @@ function selectFloorForEdit(id) {
 }
 
 window.resetPw = resetPw; window.delUser = delUser; window.delFloor = delFloor; window.selectFloorForEdit = selectFloorForEdit; window.selectUserForEdit = selectUserForEdit; window.selectSpaceForEdit = selectSpaceForEdit; window.delSpace = delSpace; window.openBookingFromList = openBookingFromList;
+
+async function toggleSso() {
+  try {
+    await api('/api/admin/sso/toggle', { method:'POST', body: JSON.stringify({ enabled: !state.ssoEnabled }) });
+    await loadAdminLists();
+    await refreshSsoStatus();
+  } catch (e) { uiAlert(e.message); }
+}
 
 async function createUser() {
   try {
@@ -751,7 +784,7 @@ async function createSpace() {
 (function init(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('viewDate').value = d.toISOString().slice(0,10);
 
-  $('openLoginPanel').onclick = ()=> $('loginModal').style.display='flex'; $('loginClose').onclick = ()=> $('loginModal').style.display='none'; $('loginConfirm').onclick = doLogin;
+  $('openLoginPanel').onclick = ()=> $('loginModal').style.display='flex'; $('loginClose').onclick = ()=> $('loginModal').style.display='none'; $('loginConfirm').onclick = doLogin; $('loginMicrosoft').onclick = startMicrosoftLogin;
   $('openChangePasswordPanel').onclick = ()=> $('changePasswordModal').style.display='flex';
   $('changePasswordClose').onclick = ()=> $('changePasswordModal').style.display='none';
   $('changePasswordConfirm').onclick = changePassword;
@@ -771,7 +804,7 @@ async function createSpace() {
     btn.addEventListener('click', () => switchAdminTab(btn.dataset.tab));
   });
   $('adminClose').onclick = ()=> $('adminModal').style.display='none';
-  $('createUserBtn').onclick = createUser; $('createFloorBtn').onclick = createFloor; $('createSpaceBtn').onclick = createSpace;
+  $('createUserBtn').onclick = createUser; $('createFloorBtn').onclick = createFloor; $('createSpaceBtn').onclick = createSpace; $('toggleSsoBtn').onclick = toggleSso;
   $('createNewUserBtn').onclick = () => { closeUserEditor(); openUserEditor(false); };
   $('cancelUserEdit').onclick = () => closeUserEditor();
   $('resetUserPwBtn').onclick = async () => {
@@ -842,8 +875,22 @@ async function createSpace() {
     view.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)down(t.clientX,t.clientY)}); view.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)move(t.clientX,t.clientY)}); window.addEventListener('touchend',up);
   })();
 
+  const qp = new URLSearchParams(window.location.search);
+  const t = qp.get('token');
+  const ssoErr = qp.get('sso_error');
+  if (t) { state.token = t; window.history.replaceState({}, '', '/'); }
+  if (ssoErr) { window.history.replaceState({}, '', '/'); uiAlert(`SSO login failed: ${ssoErr}`); }
+
   checkBootstrap();
-  refreshAll().catch(() => {});
+  refreshAll().then(async () => {
+    if (state.token && !state.me) {
+      try {
+        const me = await api('/api/me');
+        state.me = me;
+        setAuthUI();
+      } catch { /* ignore */ }
+    }
+  }).catch(() => {});
 })();
 </script>
 </body>
