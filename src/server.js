@@ -16,8 +16,13 @@ const DB_PATH = path.join(DATA_DIR, 'parking.sqlite3');
 const DB_KEY_PATH = path.join(SECRETS_DIR, 'db-access.key');
 const UPLOADS_DIR = path.join(ROOT, 'uploads');
 const FLOOR_UPLOADS_DIR = path.join(UPLOADS_DIR, 'floors');
+const MS_TENANT_ID = process.env.MS_TENANT_ID || 'common';
+const MS_CLIENT_ID = process.env.MS_CLIENT_ID || '';
+const MS_CLIENT_SECRET = process.env.MS_CLIENT_SECRET || '';
+const MS_REDIRECT_URI = process.env.MS_REDIRECT_URI || `http://localhost:${PORT}/api/auth/microsoft/callback`;
 
 const sessions = new Map();
+const oauthStates = new Map();
 
 function newErrorId(prefix = 'ERR') {
   const ts = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
@@ -65,6 +70,44 @@ function normText(v, max=120) {
 
 function validUserId(v) {
   return /^[a-zA-Z0-9._-]{1,64}$/.test(v);
+}
+
+
+function getMeta(key, fallback = null) {
+  const row = db.prepare('SELECT value FROM meta WHERE key = ?').get(key);
+  return row ? row.value : fallback;
+}
+
+function setMeta(key, value) {
+  db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)').run(key, String(value));
+}
+
+function isSsoEnabled() {
+  return getMeta('sso_enabled', '0') === '1';
+}
+
+function isSsoConfigured() {
+  return Boolean(MS_CLIENT_ID && MS_CLIENT_SECRET && MS_REDIRECT_URI);
+}
+
+function b64urlJsonDecode(part) {
+  const b64 = String(part || '').replace(/-/g, '+').replace(/_/g, '/');
+  const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+  return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+}
+
+function sanitizeUserIdFromEmail(emailOrName = '') {
+  const base = String(emailOrName || '').toLowerCase().replace(/@.*/, '').replace(/[^a-z0-9._-]/g, '.').replace(/\.+/g, '.').replace(/^\.|\.$/g, '');
+  return (base || 'user').slice(0, 50);
+}
+
+function findUniqueUserId(base) {
+  let candidate = base;
+  let i = 1;
+  while (db.prepare('SELECT 1 FROM users WHERE username = ?').get(candidate)) {
+    candidate = `${base}.${i++}`.slice(0, 64);
+  }
+  return candidate;
 }
 
 function getOrCreateDbAccessKey(firstRun) {
@@ -147,6 +190,9 @@ function migrate(db) {
   }
 
   if (!hasColumn(db, 'users', 'full_name')) db.exec('ALTER TABLE users ADD COLUMN full_name TEXT');
+  if (!hasColumn(db, 'users', 'auth_provider')) db.exec('ALTER TABLE users ADD COLUMN auth_provider TEXT');
+  if (!hasColumn(db, 'users', 'provider_subject')) db.exec('ALTER TABLE users ADD COLUMN provider_subject TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_users_provider_subject ON users(auth_provider, provider_subject) WHERE provider_subject IS NOT NULL');
   db.exec("UPDATE users SET full_name = COALESCE(NULLIF(full_name, ''), username)");
 }
 
@@ -220,6 +266,97 @@ function bookingForDate(spaceId, dateIso) {
 }
 
 app.get('/api/health', (req, res) => res.json({ ok: true, needsBootstrap: needsBootstrap() }));
+
+app.get('/api/auth/sso/status', (req, res) => {
+  res.json({ enabled: isSsoEnabled(), configured: isSsoConfigured(), provider: 'microsoft' });
+});
+
+app.get('/api/admin/sso', auth, requireAdmin, (req, res) => {
+  res.json({ enabled: isSsoEnabled(), configured: isSsoConfigured(), redirectUri: MS_REDIRECT_URI });
+});
+
+app.post('/api/admin/sso/toggle', auth, requireAdmin, (req, res) => {
+  const enable = !!req.body?.enabled;
+  if (enable && !isSsoConfigured()) {
+    return res.status(400).json({ error: 'Microsoft SSO is not configured on server' });
+  }
+  setMeta('sso_enabled', enable ? '1' : '0');
+  res.json({ ok: true, enabled: enable });
+});
+
+app.get('/api/auth/microsoft/start', (req, res) => {
+  if (!isSsoEnabled()) return res.status(400).send('SSO is disabled');
+  if (!isSsoConfigured()) return res.status(400).send('SSO not configured');
+
+  const state = crypto.randomBytes(16).toString('hex');
+  const nonce = crypto.randomBytes(16).toString('hex');
+  oauthStates.set(state, { nonce, createdAt: Date.now() });
+
+  const authUrl = new URL(`https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/authorize`);
+  authUrl.searchParams.set('client_id', MS_CLIENT_ID);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('redirect_uri', MS_REDIRECT_URI);
+  authUrl.searchParams.set('response_mode', 'query');
+  authUrl.searchParams.set('scope', 'openid profile email');
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('nonce', nonce);
+
+  res.redirect(authUrl.toString());
+});
+
+app.get('/api/auth/microsoft/callback', async (req, res) => {
+  try {
+    const code = String(req.query.code || '');
+    const state = String(req.query.state || '');
+    const stateRow = oauthStates.get(state);
+    oauthStates.delete(state);
+
+    if (!code || !stateRow) return res.redirect('/?sso_error=invalid_state');
+    if (Date.now() - stateRow.createdAt > 10 * 60 * 1000) return res.redirect('/?sso_error=state_expired');
+
+    const tokenUrl = `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/token`;
+    const body = new URLSearchParams();
+    body.set('client_id', MS_CLIENT_ID);
+    body.set('client_secret', MS_CLIENT_SECRET);
+    body.set('code', code);
+    body.set('redirect_uri', MS_REDIRECT_URI);
+    body.set('grant_type', 'authorization_code');
+
+    const tokenResp = await fetch(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+    const tokenJson = await tokenResp.json();
+    if (!tokenResp.ok || !tokenJson.id_token) return res.redirect('/?sso_error=token_exchange_failed');
+
+    const claims = b64urlJsonDecode(String(tokenJson.id_token).split('.')[1]);
+    if (claims.nonce && claims.nonce !== stateRow.nonce) return res.redirect('/?sso_error=nonce_mismatch');
+
+    const oid = String(claims.oid || claims.sub || '');
+    const email = String(claims.preferred_username || claims.email || '');
+    const fullName = normText(claims.name || email || 'Microsoft User', 120);
+    if (!oid) return res.redirect('/?sso_error=missing_subject');
+
+    let user = db.prepare('SELECT * FROM users WHERE auth_provider = ? AND provider_subject = ?').get('microsoft', oid);
+
+    if (!user) {
+      const base = sanitizeUserIdFromEmail(email || fullName);
+      const username = findUniqueUserId(base);
+      const randomPw = crypto.randomBytes(12).toString('hex');
+      const out = db.prepare(`
+        INSERT INTO users(username, full_name, password_hash, is_admin, auth_provider, provider_subject)
+        VALUES (?, ?, ?, 0, 'microsoft', ?)
+      `).run(username, fullName || username, bcrypt.hashSync(randomPw, 10), oid);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(out.lastInsertRowid);
+    } else {
+      db.prepare('UPDATE users SET full_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(fullName || user.full_name, user.id);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+    }
+
+    const token = issueToken(user);
+    return res.redirect(`/?token=${encodeURIComponent(token)}&sso=1`);
+  } catch (e) {
+    console.error('SSO callback error', e);
+    return res.redirect('/?sso_error=callback_error');
+  }
+});
 
 app.post('/api/bootstrap', (req, res) => {
   if (!needsBootstrap()) return res.status(409).json({ error: 'Already bootstrapped' });
