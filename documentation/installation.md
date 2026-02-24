@@ -1,5 +1,7 @@
 # Installation Guide (Any Machine)
 
+For a fast setup, see: `documentation/quickstart.md`
+
 ## Requirements
 - Node.js 20+ (recommended 22+)
 - npm
