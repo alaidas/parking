@@ -28,6 +28,7 @@
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.admin-block{border:1px solid #2b3a63;border-radius:10px;padding:10px;margin-top:10px}
     .list{max-height:220px;overflow:auto;border:1px solid #2b3a63;border-radius:8px;margin-top:8px}.list div{padding:8px;border-bottom:1px solid #24365d}.list div:last-child{border-bottom:0}
     .danger{border-color:#7d2b44;color:#ffb6c8}
+    .admin-tab-btn.active{outline:2px solid #7f82ff}
     @media (max-width:1040px){.layout{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
   </style>
 </head>
@@ -38,9 +39,9 @@
     <div class="header-actions">
       <button id="openLoginPanel">Login</button>
       <button id="openAdminPanel" style="display:none">Admin Panel</button>
+      <button id="openChangePasswordPanel" style="display:none">Change password</button>
       <button id="logoutBtn" style="display:none">Logout</button>
       <span class="pill" id="currentUserLabel">User: guest</span>
-      <div class="muted" id="clock"></div>
     </div>
   </div>
 
@@ -48,15 +49,13 @@
     <select id="floorSelect"></select>
     <label class="muted">View date <input id="viewDate" type="date" /></label>
     <label class="muted"><input type="checkbox" id="onlyFree" /> Only free</label>
-    <input id="search" placeholder="Search booked by user" />
     <button id="clearFilters">Clear filters</button>
-    <button id="seedDemoBtn" style="display:none">Seed Demo</button>
   </div>
 
   <div class="layout">
     <div class="panel">
       <div class="title">Floor Plan</div><div class="muted">Click a parking slot directly on the map.</div>
-      <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#0f1370"/><line x1="0" y1="130" x2="1240" y2="130" stroke="var(--line)" stroke-width="2" opacity=".7"/><text x="920" y="75" class="lot-title">PARKING</text><text x="920" y="120" class="lot-title" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="var(--line)" stroke-width="2" opacity=".7"/></svg></div>
+      <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#0f1370"/><line x1="0" y1="130" x2="1240" y2="130" stroke="var(--line)" stroke-width="2" opacity=".7"/><text x="1215" y="75" class="lot-title" text-anchor="end">PARKING</text><text x="1215" y="120" class="lot-title" text-anchor="end" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="var(--line)" stroke-width="2" opacity=".7"/></svg></div>
       <div class="chips"><span class="chip">🟢 Free</span><span class="chip">🔴 Booked</span><span class="chip">🟡 Ending soon</span></div>
     </div>
     <div class="panel">
@@ -67,65 +66,173 @@
     </div>
   </div>
 
-  <div class="panel" style="margin-top:14px;"><div class="title">Bookings (selected floor)</div><table><thead><tr><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
+  <div class="panel" style="margin-top:14px;"><div class="title">Bookings (all floors)</div><div class="row" style="max-width:340px; margin-top:8px;"><input id="bookingSearch" placeholder="Search booked by user" /></div><table><thead><tr><th>Floor</th><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
 </div>
 
-<div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password (min 8 chars)</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
+<div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password (min 4 chars)</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
 
 <div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button id="loginClose">Close</button></div></div></div>
 
-<div class="overlay" id="bookingModal"><div class="modal" style="max-width:500px"><h3>Book spot <span id="modalSpot"></span></h3><div class="row"><label class="muted">Booked by user</label><select id="bookUser"></select></div><div class="row"><label class="muted">Start date</label><input id="startAt" type="date"/></div><div class="row"><label class="muted">Duration</label><select id="durationDays"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option><option value="6">6 days</option><option value="7">7 days</option></select></div><div class="actions"><button class="btn-primary" id="saveBooking">Confirm booking</button><button id="cancelBooking">Cancel</button></div></div></div>
+<div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password (min 4 chars)</label><input id="newPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
+
+<div class="overlay" id="bookingModal"><div class="modal" style="max-width:500px"><h3>Book spot <span id="modalSpot"></span></h3><div class="row"><label class="muted">Booked by user</label><select id="bookUser"></select></div><div class="row"><label class="muted">Start date</label><input id="startAt" type="date"/></div><div class="row" id="endAtRow" style="display:none"><label class="muted">End date</label><input id="endAt" type="date"/></div><div class="row" id="durationRow"><label class="muted">Period</label><select id="durationDays"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option></select></div><div class="actions"><button class="btn-primary" id="saveBooking">Confirm booking</button><button id="cancelBooking">Cancel</button></div></div></div>
+
+<div class="overlay" id="releaseModal"><div class="modal" style="max-width:500px"><h3>Release booking</h3><div class="muted" id="releaseBookingInfo" style="margin-bottom:8px"></div><div id="releaseRangeWrap"><div class="row"><label class="muted">Release from</label><input id="releaseFrom" type="date"/></div><div class="row"><label class="muted">Release to</label><input id="releaseTo" type="date"/></div></div><div class="actions"><button class="btn-primary" id="confirmRelease">Confirm release</button><button id="cancelRelease">Cancel</button></div></div></div>
 
 <div class="overlay" id="adminModal"><div class="modal"><h3>Admin Panel</h3>
-  <div class="grid2">
+  <div class="actions" style="margin-top:0; margin-bottom:10px;">
+    <button class="admin-tab-btn btn-primary" data-tab="users">Users</button>
+    <button class="admin-tab-btn" data-tab="floors">Floors</button>
+    <button class="admin-tab-btn" data-tab="spaces">Spaces</button>
+    <button id="adminClose" style="margin-left:auto">Close</button>
+  </div>
+
+  <div class="admin-tab-pane" id="tab-users">
     <div class="admin-block"><b>Users</b>
-      <div class="row"><input id="newUsername" placeholder="username"/><input id="newUserPassword" placeholder="password" type="password"/><label class="muted"><input id="newUserAdmin" type="checkbox"/> admin</label><button class="btn-primary" id="createUserBtn">Create user</button></div>
+      <div id="userEditor" style="display:none; margin-bottom:10px;">
+        <div class="row">
+          <input id="newUsername" placeholder="user id"/>
+          <input id="newFullName" placeholder="full name"/>
+          <input id="newUserPassword" placeholder="password (required for new user)" type="password"/>
+          <label class="muted"><input id="newUserAdmin" type="checkbox"/> admin</label>
+          <button class="btn-primary" id="createUserBtn">Save user</button>
+          <button id="resetUserPwBtn" style="display:none">Reset password</button>
+          <button id="cancelUserEdit">Cancel</button>
+        </div>
+      </div>
       <div class="list" id="usersList"></div>
-    </div>
-    <div class="admin-block"><b>Floors</b>
-      <div class="row"><input id="floorName" placeholder="floor name"/><input id="floorImagePath" placeholder="image path (optional)"/><button class="btn-primary" id="createFloorBtn">Create floor</button></div>
-      <div class="list" id="floorsList"></div>
+      <div class="actions"><button id="createNewUserBtn" class="btn-primary">Create new</button></div>
     </div>
   </div>
-  <div class="admin-block" style="margin-top:10px"><b>Spaces</b>
-    <div class="grid2">
-      <input id="spaceFloorId" placeholder="floor id"/><input id="spaceNumber" placeholder="space number"/>
-      <input id="spaceX" placeholder="x"/><input id="spaceY" placeholder="y"/>
-      <input id="spaceW" placeholder="w"/><input id="spaceH" placeholder="h"/>
-      <input id="spaceDir" placeholder="dir up/down"/><input id="spaceMapX" placeholder="mini x (optional)"/>
-      <input id="spaceMapY" placeholder="mini y (optional)"/><input id="spaceMapZoom" placeholder="mini zoom (optional)"/>
+
+  <div class="admin-tab-pane" id="tab-floors" style="display:none">
+    <div class="admin-block"><b>Floors</b>
+      <div id="floorEditor" style="display:none; margin-bottom:10px;">
+        <div class="row"><input id="floorName" placeholder="floor name"/><input id="floorImageFile" type="file" accept="image/png,image/jpeg,image/webp"/><button class="btn-primary" id="createFloorBtn">Save floor</button><button id="cancelFloorEdit">Cancel</button></div>
+        <div id="floorImagePreviewWrap" style="display:none; margin-top:8px;">
+          <div class="muted" style="margin-bottom:6px;">Floor image preview</div>
+          <div class="map-mini" style="display:block;">
+            <div id="floorImagePreview" class="map-mini-view" style="height:340px; background-size:cover; background-position:center;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="list" id="floorsList"></div>
+      <div class="actions"><button id="createNewFloorBtn" class="btn-primary">Create new</button></div>
     </div>
-    <div class="actions"><button class="btn-primary" id="createSpaceBtn">Create space</button><button id="adminClose">Close</button></div>
+  </div>
+
+  <div class="admin-tab-pane" id="tab-spaces" style="display:none">
+    <div class="admin-block"><b>Spaces</b>
+      <div class="row" style="max-width:320px; margin-bottom:10px;">
+        <label class="muted">Floor</label>
+        <select id="spaceFloorFilter"></select>
+      </div>
+
+      <div id="spaceEditor" style="display:none; margin-bottom:10px;">
+        <div class="row" style="max-width:420px;">
+          <input id="spaceNumber" placeholder="space number"/>
+          <div class="actions"><button class="btn-primary" id="createSpaceBtn">Save space</button><button id="cancelSpaceEdit">Cancel</button></div>
+        </div>
+        <div class="muted" style="margin:6px 0;">Space map position (drag to set default mini view)</div>
+        <div class="map-mini" style="display:block;">
+          <div id="spaceMapEditor" class="map-mini-view" style="height:340px;"></div>
+        </div>
+      </div>
+
+      <div class="list" id="spacesList"></div>
+      <div class="actions"><button id="createNewSpaceBtn" class="btn-primary">Create new</button></div>
+    </div>
+  </div>
+</div></div>
+
+<div class="overlay" id="messageModal"><div class="modal" style="max-width:460px">
+  <h3 id="messageTitle">Message</h3>
+  <div id="messageBody" class="muted" style="font-size:14px; line-height:1.5; margin:10px 0 14px;"></div>
+  <div class="actions">
+    <button id="messageCancel" style="display:none">Cancel</button>
+    <button class="btn-primary" id="messageOk">OK</button>
   </div>
 </div></div>
 
 <script>
-const state = { token:'', me:null, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, panX:0, panY:0, baseX:50, baseY:50 };
+const state = { token:'', me:null, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50 };
 const $ = id => document.getElementById(id);
 const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString();
 const getViewDate = () => $('viewDate').value;
 const floor = () => Number($('floorSelect').value || 0);
+const esc = (v) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+let messageResolver = null;
+let messageRejectValue = false;
+
+function closeMessageModal(result) {
+  $('messageModal').style.display = 'none';
+  if (messageResolver) {
+    const r = messageResolver;
+    messageResolver = null;
+    r(result);
+  }
+}
+
+function showMessageModal({ title='Message', message='', confirm=false, okText='OK', cancelText='Cancel' } = {}) {
+  $('messageTitle').textContent = title;
+  $('messageBody').textContent = message;
+  $('messageOk').textContent = okText;
+  $('messageCancel').textContent = cancelText;
+  $('messageCancel').style.display = confirm ? 'inline-block' : 'none';
+  $('messageModal').style.display = 'flex';
+  return new Promise(resolve => { messageResolver = resolve; });
+}
+
+async function uiAlert(message, title='Message') {
+  await showMessageModal({ title, message, confirm:false, okText:'OK' });
+}
+
+function uiConfirm(message, title='Please confirm') {
+  return showMessageModal({ title, message, confirm:true, okText:'Yes', cancelText:'No' });
+}
 
 async function api(path, opts={}) {
   const h = { 'Content-Type':'application/json', ...(opts.headers||{}) };
   if (state.token) h.Authorization = `Bearer ${state.token}`;
   const r = await fetch(path, { ...opts, headers: h });
   const j = await r.json().catch(()=>({}));
-  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+
+  if (r.status === 401 && state.token) {
+    state.token = '';
+    state.me = null;
+    state.spaces = [];
+    state.bookings = [];
+    state.availability = [];
+    state.selectedSpot = null;
+    setAuthUI();
+    await refreshAll().catch(() => {});
+    await uiAlert('Your session ended. Please log in again.', 'Logged out');
+  }
+
+  if (!r.ok) {
+    const base = j.error || `HTTP ${r.status}`;
+    const withId = j.errorId ? `${base} (id: ${j.errorId})` : base;
+    throw new Error(withId);
+  }
   return j;
 }
 
-function dateAdd(date, days) { const d = new Date(`${date}T00:00:00`); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function dateAdd(date, days) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0,10);
+}
 
 function setAuthUI() {
-  $('currentUserLabel').textContent = `User: ${state.me ? state.me.username : 'guest'}`;
+  $('currentUserLabel').textContent = `User: ${state.me ? (state.me.fullName || state.me.username) : 'guest'}`;
+  $('openLoginPanel').style.display = state.me ? 'none' : 'inline-block';
   $('openAdminPanel').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
-  $('seedDemoBtn').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
+  $('openChangePasswordPanel').style.display = state.me ? 'inline-block' : 'none';
   $('logoutBtn').style.display = state.me ? 'inline-block' : 'none';
 }
 
 async function refreshAll() {
-  if (!state.token) return;
   state.floors = await api('/api/floors');
   renderFloorSelect();
   if (!floor() && state.floors[0]) $('floorSelect').value = state.floors[0].id;
@@ -137,13 +244,13 @@ async function refreshFloorData() {
   if (!floor()) return;
   state.spaces = await api(`/api/spaces?floorId=${floor()}`);
   state.availability = await api(`/api/availability?floorId=${floor()}&date=${encodeURIComponent(getViewDate())}`);
-  state.bookings = await api(`/api/bookings?floorId=${floor()}`);
+  state.bookings = await api('/api/bookings');
   if (state.me?.isAdmin) state.users = await api('/api/users');
 }
 
 function renderFloorSelect() {
   const v = floor();
-  $('floorSelect').innerHTML = state.floors.map(f => `<option value="${f.id}">${f.name}</option>`).join('') || '<option value="">No floors</option>';
+  $('floorSelect').innerHTML = state.floors.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('') || '<option value="">No floors</option>';
   if (v) $('floorSelect').value = String(v);
 }
 
@@ -160,10 +267,19 @@ function statusClass(s) {
 function renderMap() {
   const layer = $('spotLayer'); layer.innerHTML = '';
   const onlyFree = $('onlyFree').checked;
-  const search = $('search').value.trim().toLowerCase();
-  for (const s of state.availability) {
+  const toSortable = (v) => {
+    const s = String(v ?? '').trim();
+    if (/^\d+$/.test(s)) return { num: Number(s), raw: s };
+    return { num: Number.POSITIVE_INFINITY, raw: s.toLowerCase() };
+  };
+  const orderedSpaces = [...state.availability].sort((a, b) => {
+    const sa = toSortable(a.space_number);
+    const sb = toSortable(b.space_number);
+    if (sa.num !== sb.num) return sa.num - sb.num;
+    return sa.raw.localeCompare(sb.raw);
+  });
+  for (const s of orderedSpaces) {
     if (onlyFree && s.isBooked) continue;
-    if (search && (!s.bookingUser || !s.bookingUser.toLowerCase().includes(search))) continue;
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class', `spot-group ${statusClass(s)} ${state.selectedSpot===s.id?'selected':''}`);
     const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -180,7 +296,7 @@ function renderDetails() {
   if (!s) { $('spotHint').textContent = 'Select a spot from the map'; return; }
   const f = currentFloorObj();
   $('spotHint').textContent = `${f?.name || ''} · Spot ${s.space_number}`;
-  $('details').innerHTML = `<div><b>Status:</b> ${s.isBooked?'Booked':'Free'}</div>${s.isBooked?`<div><b>User:</b> ${s.bookingUser}</div><div><b>End:</b> ${fmtDate(s.bookingEnd)}</div>`:''}`;
+  $('details').innerHTML = `<div><b>Status:</b> ${s.isBooked?'Booked':'Free'}</div>${s.isBooked?`<div><b>User:</b> ${esc(s.bookingUser)}</div><div><b>Start:</b> ${esc(fmtDate(s.bookingStart))}</div><div><b>End:</b> ${esc(fmtDate(s.bookingEnd))}</div>`:''}`;
 
   const map = $('mapMiniView');
   map.style.backgroundImage = `url(${f?.image_path || './resources/parking-outside.png'})`;
@@ -190,26 +306,66 @@ function renderDetails() {
   updateMiniPos(s.map_zoom ?? 260);
   $('mapMini').style.display='block'; $('mapMiniCaption').textContent = `Location on ${f?.name || 'floor'} (drag to explore)`;
 
-  if (!s.isBooked) {
+  if (state.me && !s.isBooked) {
     const b = document.createElement('button'); b.className='btn-primary'; b.textContent='Book this spot'; b.onclick=openBookingModal; $('actions').appendChild(b);
   }
-  if (s.isBooked && (state.me?.isAdmin || s.bookingOwnerId===state.me?.userId)) {
-    const r = document.createElement('button'); r.textContent='Release'; r.onclick=releaseBooking; $('actions').appendChild(r);
+  if (state.me && s.isBooked && (state.me?.isAdmin || s.bookingOwnerId===state.me?.userId)) {
+    const r = document.createElement('button'); r.textContent='Release'; r.onclick=openReleaseModal; $('actions').appendChild(r);
   }
+}
+
+async function openBookingFromList(spaceId, startDate, endDate, floorId) {
+  if (!state.me) return;
+  const at = getViewDate();
+
+  if (Number(floorId) && Number($('floorSelect').value) !== Number(floorId)) {
+    $('floorSelect').value = String(floorId);
+    await refreshFloorData();
+  }
+
+  if (!(startDate <= at && at <= endDate)) {
+    $('viewDate').value = startDate;
+    await refreshFloorData();
+  }
+  state.selectedSpot = Number(spaceId);
+  render();
 }
 
 function renderTable() {
   const at = getViewDate();
-  $('bookingRows').innerHTML = state.bookings.map(b => {
-    const st = (b.start_date <= at && at < b.end_date) ? 'Active' : (b.start_date > at ? 'Booked' : 'Ended');
-    return `<tr><td>${b.space_number}</td><td>${b.username}</td><td>${fmtDate(b.start_date)}</td><td>${fmtDate(b.end_date)}</td><td>${st}</td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="muted">No bookings</td></tr>';
+  const search = $('bookingSearch').value.trim().toLowerCase();
+  const rows = state.bookings.filter(b => {
+    if (!search) return true;
+    const st = (b.start_date <= at && at <= b.end_date) ? 'active' : (b.start_date > at ? 'booked' : 'ended');
+    const haystack = [
+      String(b.floor_name || ''),
+      String(b.space_number || ''),
+      String(b.full_name || ''),
+      String(b.username || ''),
+      String(b.start_date || ''),
+      String(b.end_date || ''),
+      fmtDate(b.start_date || ''),
+      fmtDate(b.end_date || ''),
+      st,
+      at
+    ].join(' ').toLowerCase();
+    return haystack.includes(search);
+  });
+
+  $('bookingRows').innerHTML = rows.map(b => {
+    const st = (b.start_date <= at && at <= b.end_date) ? 'Active' : (b.start_date > at ? 'Booked' : 'Ended');
+    const clickable = !!state.me;
+    return `<tr ${clickable ? `onclick="openBookingFromList(${b.space_id}, '${b.start_date}', '${b.end_date}', ${b.floor_id})" style="cursor:pointer;"` : ''}><td>${esc(b.floor_name || '-')}</td><td>${esc(b.space_number)}</td><td>${esc(b.full_name || b.username)}</td><td>${esc(fmtDate(b.start_date))}</td><td>${esc(fmtDate(b.end_date))}</td><td>${esc(st)}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="muted">No bookings</td></tr>';
 }
 
 function render() {
   const f = currentFloorObj();
   $('floorStats').textContent = f ? `${f.name} · ${state.spaces.length} spaces` : 'No floor selected';
-  $('lotTitleB').textContent = f ? f.name.toUpperCase() : 'FLOOR';
+  const floorTitle = f ? f.name.toUpperCase() : 'FLOOR';
+  $('lotTitleB').textContent = floorTitle;
+  const dynamicSize = floorTitle.length > 18 ? 36 : floorTitle.length > 12 ? 42 : 46;
+  $('lotTitleB').setAttribute('font-size', String(dynamicSize));
   renderMap(); renderDetails(); renderTable();
 }
 
@@ -225,11 +381,17 @@ async function openBookingModal() {
   const s = spotAt(); if (!s) return;
   $('modalSpot').textContent = s.space_number;
   $('startAt').value = getViewDate();
+  $('endAt').value = getViewDate();
+  $('durationDays').value = '1';
   if (state.me?.isAdmin) {
+    $('endAtRow').style.display = 'grid';
+    $('durationRow').style.display = 'none';
     if (!state.users.length) state.users = await api('/api/users');
-    $('bookUser').innerHTML = state.users.map(u=>`<option value="${u.id}">${u.username}</option>`).join('');
+    $('bookUser').innerHTML = state.users.map(u=>`<option value="${u.id}">${esc(u.fullName || u.username)}</option>`).join('');
   } else {
-    $('bookUser').innerHTML = `<option value="${state.me.userId}">${state.me.username}</option>`;
+    $('endAtRow').style.display = 'none';
+    $('durationRow').style.display = 'grid';
+    $('bookUser').innerHTML = `<option value="${state.me.userId}">${esc(state.me.fullName || state.me.username)}</option>`;
   }
   $('bookingModal').style.display='flex';
 }
@@ -237,21 +399,68 @@ async function openBookingModal() {
 async function saveBooking() {
   const s = spotAt(); if (!s) return;
   const start = $('startAt').value;
-  const days = Number($('durationDays').value||1);
-  if (!start) return alert('Select start date');
-  const end = dateAdd(start, days);
+  let end = $('endAt').value;
+  if (state.me?.isAdmin) {
+    if (!start || !end) return uiAlert('Select start and end dates');
+    if (start > end) return uiAlert('End date must be same or after start date');
+  } else {
+    const days = Number($('durationDays').value || 1);
+    if (!start) return uiAlert('Select start date');
+    end = dateAdd(start, Math.max(0, Math.min(5, days) - 1));
+  }
+
   const payload = { floorId: floor(), spaceId: s.id, startDate:start, endDate:end };
   if (state.me?.isAdmin) payload.userId = Number($('bookUser').value);
   try { await api('/api/bookings', { method:'POST', body: JSON.stringify(payload) }); $('bookingModal').style.display='none'; await refreshFloorData(); render(); }
-  catch (e) { alert(e.message); }
+  catch (e) { uiAlert(e.message); }
+}
+
+function openReleaseModal() {
+  const s = spotAt();
+  if (!s || !s.isBooked) return;
+  const oneDay = s.bookingStart === s.bookingEnd;
+  $('releaseBookingInfo').textContent = `Booking: ${fmtDate(s.bookingStart)} - ${fmtDate(s.bookingEnd)}${oneDay ? ' (1 day)' : ''}`;
+  $('releaseFrom').value = s.bookingStart || getViewDate();
+  $('releaseTo').value = s.bookingEnd || getViewDate();
+  $('releaseRangeWrap').style.display = oneDay ? 'none' : 'block';
+  $('releaseModal').style.display = 'flex';
 }
 
 async function releaseBooking() {
   const s = spotAt(); if (!s) return;
   try {
-    await api('/api/bookings/release', { method:'POST', body: JSON.stringify({ spaceId: s.id, date: getViewDate(), userId: state.me?.isAdmin ? s.bookingOwnerId : undefined })});
-    await refreshFloorData(); render();
-  } catch (e) { alert(e.message); }
+    const oneDay = s.bookingStart === s.bookingEnd;
+    const payload = {
+      spaceId: s.id,
+      date: getViewDate(),
+      userId: state.me?.isAdmin ? s.bookingOwnerId : undefined
+    };
+    if (!oneDay) {
+      payload.releaseStart = $('releaseFrom').value;
+      payload.releaseEnd = $('releaseTo').value;
+    }
+
+    await api('/api/bookings/release', { method:'POST', body: JSON.stringify(payload)});
+    $('releaseModal').style.display = 'none';
+    await refreshFloorData();
+    render();
+  } catch (e) { uiAlert(e.message); }
+}
+
+async function changePassword() {
+  const oldPassword = $('oldPassword').value;
+  const newPassword = $('newPassword').value;
+  if (!oldPassword || !newPassword) return uiAlert('Please fill both password fields');
+  if (newPassword.length < 4) return uiAlert('New password must be at least 4 characters');
+  try {
+    await api('/api/me/change-password', { method:'POST', body: JSON.stringify({ oldPassword, newPassword }) });
+    $('oldPassword').value = '';
+    $('newPassword').value = '';
+    $('changePasswordModal').style.display = 'none';
+    await uiAlert('Password changed successfully', 'Success');
+  } catch (e) {
+    uiAlert(e.message);
+  }
 }
 
 async function doLogin() {
@@ -259,7 +468,7 @@ async function doLogin() {
     const out = await api('/api/login', { method:'POST', body: JSON.stringify({ username: $('loginUser').value.trim(), password: $('loginPassword').value })});
     state.token = out.token; state.me = { ...out.user, userId: out.user.id };
     $('loginModal').style.display='none'; setAuthUI(); await refreshAll();
-  } catch (e) { alert(e.message); }
+  } catch (e) { uiAlert(e.message); }
 }
 
 async function checkBootstrap() {
@@ -268,59 +477,335 @@ async function checkBootstrap() {
 }
 
 async function createAdmin() {
-  try { await api('/api/bootstrap', { method:'POST', body: JSON.stringify({ adminPassword: $('bootstrapPassword').value })}); $('bootstrapModal').style.display='none'; alert('Admin created. Login as admin.'); $('loginModal').style.display='flex'; }
-  catch (e) { alert(e.message); }
+  try { await api('/api/bootstrap', { method:'POST', body: JSON.stringify({ adminPassword: $('bootstrapPassword').value })}); $('bootstrapModal').style.display='none'; uiAlert('Admin created. Login as admin.'); $('loginModal').style.display='flex'; }
+  catch (e) { uiAlert(e.message); }
+}
+
+function openUserEditor(isEdit = false) {
+  $('userEditor').style.display = 'block';
+  $('createUserBtn').textContent = isEdit ? 'Save user' : 'Create user';
+  $('newUsername').disabled = isEdit;
+  $('newUserPassword').placeholder = isEdit ? 'password change via reset button' : 'password (required for new user)';
+  $('resetUserPwBtn').style.display = isEdit ? 'inline-block' : 'none';
+}
+
+function closeUserEditor() {
+  state.selectedUserEditId = null;
+  $('userEditor').style.display = 'none';
+  $('newUsername').value = '';
+  $('newUserPassword').value = '';
+  $('newFullName').value = '';
+  $('newUserAdmin').checked = false;
+  $('newUsername').disabled = false;
+  $('newUserAdmin').disabled = false;
+  $('createUserBtn').disabled = false;
+  $('resetUserPwBtn').style.display = 'none';
+}
+
+function openFloorEditor(isEdit = false) {
+  $('floorEditor').style.display = 'block';
+  $('createFloorBtn').textContent = isEdit ? 'Save floor' : 'Create floor';
+}
+
+function closeFloorEditor() {
+  state.selectedFloorEditId = null;
+  $('floorEditor').style.display = 'none';
+  $('floorName').value = '';
+  $('floorImageFile').value = '';
+  setFloorImagePreview('');
+}
+
+function switchAdminTab(tabName) {
+  const tabs = ['users', 'floors', 'spaces'];
+  tabs.forEach(name => {
+    const pane = $(`tab-${name}`);
+    if (pane) pane.style.display = name === tabName ? 'block' : 'none';
+  });
+  document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+    const active = btn.dataset.tab === tabName;
+    btn.classList.toggle('active', active);
+    btn.classList.toggle('btn-primary', active);
+  });
+  if (tabName === 'floors') closeFloorEditor();
+  if (tabName === 'users') closeUserEditor();
+  if (tabName === 'spaces') {
+    closeSpaceEditor();
+    loadSpacesList();
+  }
 }
 
 async function loadAdminLists() {
   state.users = await api('/api/users');
   const floors = await api('/api/floors');
-  $('usersList').innerHTML = state.users.map(u => `<div>${u.username} ${u.isAdmin?'(admin)':''} ${u.isBuiltinAdmin?'':'<button onclick="toggleRole('+u.id+','+(!u.isAdmin)+')">role</button> <button onclick="resetPw('+u.id+')">reset pw</button> <button class=\"danger\" onclick=\"delUser('+u.id+')\">delete</button>'}</div>`).join('') || '<div>No users</div>';
-  $('floorsList').innerHTML = floors.map(f => `<div>#${f.id} ${f.name} <button onclick="delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
+  state.floors = floors;
+  $('usersList').innerHTML = state.users.map(u => `<div onclick="selectUserForEdit(${u.id})" style="cursor:pointer;${state.selectedUserEditId===u.id?'background:#15244d;':''}">${u.fullName || u.username} <span class=\"muted\">(${u.username})</span> ${u.isAdmin?'(admin)':''} ${u.isBuiltinAdmin?'<span class=\"muted\">built-in</span>':''} ${u.isBuiltinAdmin?'':`<button class=\"danger\" onclick=\"event.stopPropagation();delUser(${u.id})\">delete</button>`}</div>`).join('') || '<div>No users</div>';
+  $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${state.selectedFloorEditId===f.id?'background:#15244d;':''}">#${f.id} ${esc(f.name)}${f.image_path ? ' · <span class=\"muted\">image set</span>' : ''} <button onclick="event.stopPropagation();delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
+
+  const current = Number($('spaceFloorFilter').value || 0);
+  $('spaceFloorFilter').innerHTML = floors.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('') || '<option value="">No floors</option>';
+  if (current && floors.some(f => f.id === current)) $('spaceFloorFilter').value = String(current);
+  if (!$('spaceFloorFilter').value && floors[0]) $('spaceFloorFilter').value = String(floors[0].id);
+  await loadSpacesList();
 }
 
-async function toggleRole(id, isAdmin) { try { await api(`/api/users/${id}`, { method:'PATCH', body: JSON.stringify({ isAdmin })}); await loadAdminLists(); } catch(e){alert(e.message);} }
-async function resetPw(id) { try { const r=await api(`/api/users/${id}/reset-password`, { method:'POST' }); alert(`Temporary password: ${r.temporaryPassword}`);} catch(e){alert(e.message);} }
-async function delUser(id) { if(!confirm('Delete user?')) return; try { await api(`/api/users/${id}`, { method:'DELETE' }); await loadAdminLists(); } catch(e){alert(e.message);} }
-async function delFloor(id) { if(!confirm('Delete floor?')) return; try { await api(`/api/floors/${id}`, { method:'DELETE' }); await loadAdminLists(); await refreshAll(); } catch(e){alert(e.message);} }
-window.toggleRole = toggleRole; window.resetPw = resetPw; window.delUser = delUser; window.delFloor = delFloor;
+function selectUserForEdit(id) {
+  const u = state.users.find(x => x.id === id);
+  if (!u) return;
+  state.selectedUserEditId = id;
+  openUserEditor(true);
+  $('newUsername').value = u.username || '';
+  $('newFullName').value = u.fullName || u.username || '';
+  $('newUserPassword').value = '';
+  $('newUserAdmin').checked = !!u.isAdmin;
+  if (u.isBuiltinAdmin) {
+    $('newUserAdmin').disabled = true;
+    $('createUserBtn').disabled = true;
+  } else {
+    $('newUserAdmin').disabled = false;
+    $('createUserBtn').disabled = false;
+  }
+  loadAdminLists();
+}
+
+async function resetPw(id) { try { const r=await api(`/api/users/${id}/reset-password`, { method:'POST' }); await uiAlert(`Temporary password: ${r.temporaryPassword}`, 'Password reset'); } catch(e){uiAlert(e.message);} }
+async function delUser(id) { if (!(await uiConfirm('Delete user?', 'Delete user'))) return; try { await api(`/api/users/${id}`, { method:'DELETE' }); if (state.selectedUserEditId===id) closeUserEditor(); await loadAdminLists(); } catch(e){uiAlert(e.message);} }
+async function delFloor(id) { if (!(await uiConfirm('Delete floor?', 'Delete floor'))) return; try { await api(`/api/floors/${id}`, { method:'DELETE' }); if (state.selectedFloorEditId===id) closeFloorEditor(); await loadAdminLists(); await refreshAll(); } catch(e){uiAlert(e.message);} }
+
+function selectFloorForEdit(id) {
+  const f = state.floors.find(x => x.id === id);
+  if (!f) return;
+  state.selectedFloorEditId = id;
+  openFloorEditor(true);
+  $('floorName').value = f.name || '';
+  $('floorImageFile').value = '';
+  setFloorImagePreview(f.image_path || '');
+  loadAdminLists();
+}
+
+window.resetPw = resetPw; window.delUser = delUser; window.delFloor = delFloor; window.selectFloorForEdit = selectFloorForEdit; window.selectUserForEdit = selectUserForEdit; window.selectSpaceForEdit = selectSpaceForEdit; window.delSpace = delSpace; window.openBookingFromList = openBookingFromList;
 
 async function createUser() {
-  try { await api('/api/users', { method:'POST', body: JSON.stringify({ username:$('newUsername').value.trim(), password:$('newUserPassword').value, isAdmin:$('newUserAdmin').checked })}); $('newUsername').value=''; $('newUserPassword').value=''; $('newUserAdmin').checked=false; await loadAdminLists(); }
-  catch(e){alert(e.message);} }
+  try {
+    const username = $('newUsername').value.trim();
+    const fullName = $('newFullName').value.trim();
+    const password = $('newUserPassword').value;
+    const isAdmin = $('newUserAdmin').checked;
+
+    if (state.selectedUserEditId) {
+      await api(`/api/users/${state.selectedUserEditId}`, { method:'PATCH', body: JSON.stringify({ isAdmin, fullName }) });
+      closeUserEditor();
+    } else {
+      if (!username || !password) return uiAlert('User ID and password are required');
+      if (password.length < 4) return uiAlert('Password must be at least 4 characters');
+      if (!fullName) return uiAlert('Full name is required');
+      await api('/api/users', { method:'POST', body: JSON.stringify({ username, fullName, password, isAdmin }) });
+      closeUserEditor();
+    }
+    await loadAdminLists();
+  } catch(e){uiAlert(e.message);} }
+
+async function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ''));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function setFloorImagePreview(src) {
+  const wrap = $('floorImagePreviewWrap');
+  const preview = $('floorImagePreview');
+  if (!src) {
+    wrap.style.display = 'none';
+    preview.style.backgroundImage = '';
+    return;
+  }
+  preview.style.backgroundImage = `url(${src})`;
+  wrap.style.display = 'block';
+}
 
 async function createFloor() {
-  try { await api('/api/floors', { method:'POST', body: JSON.stringify({ name:$('floorName').value.trim(), imagePath:$('floorImagePath').value.trim() })}); $('floorName').value=''; $('floorImagePath').value=''; await loadAdminLists(); await refreshAll(); }
-  catch(e){alert(e.message);} }
+  try {
+    const name = $('floorName').value.trim();
+    if (!name) return uiAlert('Floor name is required');
+    const file = $('floorImageFile').files?.[0];
+    const payload = { name };
+    if (file) {
+      payload.imageData = await fileToDataUrl(file);
+      payload.imageName = file.name;
+    }
+
+    if (state.selectedFloorEditId) {
+      await api(`/api/floors/${state.selectedFloorEditId}`, { method:'PATCH', body: JSON.stringify(payload) });
+    } else {
+      await api('/api/floors', { method:'POST', body: JSON.stringify(payload) });
+    }
+
+    closeFloorEditor();
+    await loadAdminLists();
+    await refreshAll();
+  } catch(e){ uiAlert(e.message); }
+}
+
+function openSpaceEditor(isEdit = false) {
+  $('spaceEditor').style.display = 'block';
+  $('createSpaceBtn').textContent = isEdit ? 'Save space' : 'Create space';
+}
+
+function closeSpaceEditor() {
+  state.selectedSpaceEditId = null;
+  $('spaceEditor').style.display = 'none';
+  $('spaceNumber').value = '';
+  state.spaceMapX = 50;
+  state.spaceMapY = 50;
+  state.spaceMapZoom = 260;
+  renderSpaceMapEditor();
+}
+
+function currentSpaceFloor() {
+  return state.floors.find(f => f.id === Number($('spaceFloorFilter').value));
+}
+
+function renderSpaceMapEditor() {
+  const el = $('spaceMapEditor');
+  const f = currentSpaceFloor();
+  el.style.backgroundImage = `url(${f?.image_path || './resources/parking-outside.png'})`;
+  el.style.backgroundSize = `${state.spaceMapZoom}%`;
+  el.style.backgroundPosition = `${Math.max(0, Math.min(100, state.spaceMapX))}% ${Math.max(0, Math.min(100, state.spaceMapY))}%`;
+}
+
+async function loadSpacesList() {
+  const floorId = Number($('spaceFloorFilter').value || 0);
+  if (!floorId) {
+    $('spacesList').innerHTML = '<div>No floor selected</div>';
+    return;
+  }
+  const spaces = await api(`/api/spaces?floorId=${floorId}`);
+  state.spaces = spaces;
+  $('spacesList').innerHTML = spaces.map(s => `<div onclick="selectSpaceForEdit(${s.id})" style="cursor:pointer;${state.selectedSpaceEditId===s.id?'background:#15244d;':''}">#${esc(s.space_number)} <button onclick="event.stopPropagation();delSpace(${s.id})">delete</button></div>`).join('') || '<div>No spaces</div>';
+  renderSpaceMapEditor();
+}
+
+function selectSpaceForEdit(id) {
+  const s = state.spaces.find(x => x.id === id);
+  if (!s) return;
+  state.selectedSpaceEditId = id;
+  openSpaceEditor(true);
+  $('spaceNumber').value = s.space_number || '';
+  state.spaceMapX = s.map_x ?? 50;
+  state.spaceMapY = s.map_y ?? 50;
+  state.spaceMapZoom = s.map_zoom ?? 260;
+  renderSpaceMapEditor();
+  loadSpacesList();
+}
+
+async function delSpace(id) {
+  if (!(await uiConfirm('Delete space?', 'Delete space'))) return;
+  try {
+    await api(`/api/spaces/${id}`, { method:'DELETE' });
+    if (state.selectedSpaceEditId === id) closeSpaceEditor();
+    await loadSpacesList();
+    await refreshFloorData();
+    render();
+  } catch(e){ uiAlert(e.message); }
+}
 
 async function createSpace() {
-  const n = v => v === '' ? undefined : Number(v);
   try {
-    await api('/api/spaces', { method:'POST', body: JSON.stringify({ floorId:Number($('spaceFloorId').value), spaceNumber:$('spaceNumber').value.trim(), x:n($('spaceX').value), y:n($('spaceY').value), w:n($('spaceW').value), h:n($('spaceH').value), dir:$('spaceDir').value.trim() || undefined, mapX:n($('spaceMapX').value), mapY:n($('spaceMapY').value), mapZoom:n($('spaceMapZoom').value) })});
-    ['spaceFloorId','spaceNumber','spaceX','spaceY','spaceW','spaceH','spaceDir','spaceMapX','spaceMapY','spaceMapZoom'].forEach(id=>$(id).value='');
-    await refreshFloorData(); render();
-  } catch(e){alert(e.message);} }
+    const floorId = Number($('spaceFloorFilter').value || 0);
+    const spaceNumber = $('spaceNumber').value.trim();
+    if (!floorId) return uiAlert('Select floor first');
+    if (!spaceNumber) return uiAlert('Space number is required');
 
-async function seedDemo() { try { await api('/api/seed-demo', { method:'POST' }); await refreshAll(); } catch(e){alert(e.message);} }
+    const payload = { floorId, spaceNumber, mapX: state.spaceMapX, mapY: state.spaceMapY, mapZoom: state.spaceMapZoom };
+    if (state.selectedSpaceEditId) {
+      await api(`/api/spaces/${state.selectedSpaceEditId}`, { method:'PATCH', body: JSON.stringify(payload) });
+    } else {
+      await api('/api/spaces', { method:'POST', body: JSON.stringify(payload) });
+    }
+
+    closeSpaceEditor();
+    await loadSpacesList();
+    await refreshFloorData();
+    render();
+  } catch(e){uiAlert(e.message);} }
 
 (function init(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('viewDate').value = d.toISOString().slice(0,10);
-  setInterval(()=>{$('clock').textContent = new Date().toLocaleString();},1000); $('clock').textContent = new Date().toLocaleString();
 
   $('openLoginPanel').onclick = ()=> $('loginModal').style.display='flex'; $('loginClose').onclick = ()=> $('loginModal').style.display='none'; $('loginConfirm').onclick = doLogin;
-  $('logoutBtn').onclick = ()=>{ state.token=''; state.me=null; state.floors=[]; state.spaces=[]; state.bookings=[]; state.availability=[]; state.selectedSpot=null; setAuthUI(); renderFloorSelect(); render(); };
+  $('openChangePasswordPanel').onclick = ()=> $('changePasswordModal').style.display='flex';
+  $('changePasswordClose').onclick = ()=> $('changePasswordModal').style.display='none';
+  $('changePasswordConfirm').onclick = changePassword;
+  ['oldPassword','newPassword'].forEach(id => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') changePassword(); }));
+  $('messageOk').onclick = () => closeMessageModal(true);
+  $('messageCancel').onclick = () => closeMessageModal(false);
+  ['loginUser','loginPassword'].forEach(id => $(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  }));
+  $('logoutBtn').onclick = async ()=>{ state.token=''; state.me=null; state.spaces=[]; state.bookings=[]; state.availability=[]; state.selectedSpot=null; setAuthUI(); await refreshAll(); };
   $('bootstrapConfirm').onclick = createAdmin;
-  $('openAdminPanel').onclick = async ()=>{ $('adminModal').style.display='flex'; await loadAdminLists(); };
+  $('bootstrapPassword').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') createAdmin();
+  });
+  $('openAdminPanel').onclick = async ()=>{ $('adminModal').style.display='flex'; switchAdminTab('users'); await loadAdminLists(); };
+  document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchAdminTab(btn.dataset.tab));
+  });
   $('adminClose').onclick = ()=> $('adminModal').style.display='none';
   $('createUserBtn').onclick = createUser; $('createFloorBtn').onclick = createFloor; $('createSpaceBtn').onclick = createSpace;
-  $('seedDemoBtn').onclick = seedDemo;
+  $('createNewUserBtn').onclick = () => { closeUserEditor(); openUserEditor(false); };
+  $('cancelUserEdit').onclick = () => closeUserEditor();
+  $('resetUserPwBtn').onclick = async () => {
+    if (!state.selectedUserEditId) return;
+    await resetPw(state.selectedUserEditId);
+  };
+  $('createNewFloorBtn').onclick = () => { closeFloorEditor(); openFloorEditor(false); };
+  $('cancelFloorEdit').onclick = () => closeFloorEditor();
+  $('createNewSpaceBtn').onclick = () => { closeSpaceEditor(); openSpaceEditor(false); };
+  $('cancelSpaceEdit').onclick = () => closeSpaceEditor();
+  $('spaceFloorFilter').addEventListener('change', async () => { closeSpaceEditor(); await loadSpacesList(); });
+  $('floorImageFile').addEventListener('change', async () => {
+    const file = $('floorImageFile').files?.[0];
+    if (!file) {
+      if (state.selectedFloorEditId) {
+        const f = state.floors.find(x => x.id === state.selectedFloorEditId);
+        setFloorImagePreview(f?.image_path || '');
+      } else {
+        setFloorImagePreview('');
+      }
+      return;
+    }
+    const dataUrl = await fileToDataUrl(file);
+    setFloorImagePreview(dataUrl);
+  });
 
   $('saveBooking').onclick = saveBooking; $('cancelBooking').onclick = ()=> $('bookingModal').style.display='none';
-  $('clearFilters').onclick = ()=>{ $('onlyFree').checked=false; $('search').value=''; const d2=new Date(); d2.setMinutes(d2.getMinutes()-d2.getTimezoneOffset()); $('viewDate').value=d2.toISOString().slice(0,10); if(state.token) refreshFloorData().then(render); };
+  $('confirmRelease').onclick = releaseBooking;
+  $('cancelRelease').onclick = ()=> $('releaseModal').style.display='none';
+  $('clearFilters').onclick = ()=>{ $('onlyFree').checked=false; const d2=new Date(); d2.setMinutes(d2.getMinutes()-d2.getTimezoneOffset()); $('viewDate').value=d2.toISOString().slice(0,10); if(state.token) refreshFloorData().then(render); else render(); };
   $('floorSelect').addEventListener('change', async ()=>{ state.selectedSpot=null; await refreshFloorData(); render(); });
-  ['viewDate','onlyFree','search'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
+  ['viewDate','onlyFree'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
+  $('bookingSearch').addEventListener('input', () => renderTable());
 
-  ['bootstrapModal','loginModal','bookingModal','adminModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
+  ['bookingModal','releaseModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
+  $('bootstrapModal').onclick = () => {};
+  $('loginModal').onclick = () => {};
+  $('changePasswordModal').onclick = () => {};
+  $('adminModal').onclick = () => {};
+  $('messageModal').onclick = () => {};
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if ($('messageModal').style.display === 'flex') { e.preventDefault(); closeMessageModal(false); return; }
+    if ($('bootstrapModal').style.display === 'flex' || $('loginModal').style.display === 'flex' || $('changePasswordModal').style.display === 'flex' || $('adminModal').style.display === 'flex') {
+      e.preventDefault();
+      return;
+    }
+    ['bookingModal'].forEach(id => {
+      if ($(id).style.display === 'flex') $(id).style.display = 'none';
+    });
+  });
 
   (function dragMini(){
     const view = $('mapMiniView'); let drag=false,sx=0,sy=0,px=0,py=0;
@@ -331,7 +816,17 @@ async function seedDemo() { try { await api('/api/seed-demo', { method:'POST' })
     view.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)down(t.clientX,t.clientY)}); view.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)move(t.clientX,t.clientY)}); window.addEventListener('touchend',up);
   })();
 
+  (function dragSpaceMapEditor(){
+    const view = $('spaceMapEditor'); let drag=false,sx=0,sy=0,px=0,py=0;
+    const down=(x,y)=>{drag=true;view.classList.add('dragging');sx=x;sy=y;px=state.spaceMapX;py=state.spaceMapY};
+    const move=(x,y)=>{if(!drag)return;const r=view.getBoundingClientRect();state.spaceMapX=px-(x-sx)/r.width*100;state.spaceMapY=py-(y-sy)/r.height*100;renderSpaceMapEditor();};
+    const up=()=>{drag=false;view.classList.remove('dragging')};
+    view.addEventListener('mousedown',e=>down(e.clientX,e.clientY)); window.addEventListener('mousemove',e=>move(e.clientX,e.clientY)); window.addEventListener('mouseup',up);
+    view.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)down(t.clientX,t.clientY)}); view.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)move(t.clientX,t.clientY)}); window.addEventListener('touchend',up);
+  })();
+
   checkBootstrap();
+  refreshAll().catch(() => {});
 })();
 </script>
 </body>

@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const Database = require('better-sqlite3');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = process.cwd();
@@ -14,11 +14,35 @@ const DATA_DIR = path.join(ROOT, 'data');
 const SECRETS_DIR = path.join(ROOT, 'secrets');
 const DB_PATH = path.join(DATA_DIR, 'parking.sqlite3');
 const DB_KEY_PATH = path.join(SECRETS_DIR, 'db-access.key');
+const UPLOADS_DIR = path.join(ROOT, 'uploads');
+const FLOOR_UPLOADS_DIR = path.join(UPLOADS_DIR, 'floors');
 
 const sessions = new Map();
 
+function newErrorId(prefix = 'ERR') {
+  const ts = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+  const rnd = crypto.randomBytes(3).toString('hex');
+  return `${prefix}-${ts}-${rnd}`;
+}
+
 function ensureDir(p) { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true, mode: 0o700 }); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
+function safeExt(filename = '') {
+  const ext = path.extname(filename).toLowerCase();
+  return ['.png', '.jpg', '.jpeg', '.webp'].includes(ext) ? ext : '.png';
+}
+function saveFloorImageFromData(imageData, imageName = 'floor.png') {
+  if (!imageData || typeof imageData !== 'string') return null;
+  const m = imageData.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/i);
+  if (!m) throw new Error('Invalid floor image format');
+  ensureDir(UPLOADS_DIR);
+  ensureDir(FLOOR_UPLOADS_DIR);
+  const ext = safeExt(imageName);
+  const filename = `floor-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+  const outPath = path.join(FLOOR_UPLOADS_DIR, filename);
+  fs.writeFileSync(outPath, Buffer.from(m[3], 'base64'));
+  return `./uploads/floors/${filename}`;
+}
 function addDays(dateIso, d) {
   const dt = new Date(`${dateIso}T00:00:00Z`);
   dt.setUTCDate(dt.getUTCDate() + d);
@@ -33,6 +57,15 @@ function randomSimplePassword(len = 6) {
 }
 
 function sha(v) { return crypto.createHash('sha256').update(v).digest('hex'); }
+
+function normText(v, max=120) {
+  const t = String(v ?? '').trim();
+  return t.slice(0, max);
+}
+
+function validUserId(v) {
+  return /^[a-zA-Z0-9._-]{1,64}$/.test(v);
+}
 
 function getOrCreateDbAccessKey(firstRun) {
   ensureDir(SECRETS_DIR);
@@ -57,6 +90,7 @@ function migrate(db) {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
+      full_name TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       is_admin INTEGER NOT NULL DEFAULT 0,
       is_builtin_admin INTEGER NOT NULL DEFAULT 0,
@@ -111,6 +145,9 @@ function migrate(db) {
   for (const [name, type] of extraCols) {
     if (!hasColumn(db, 'spaces', name)) db.exec(`ALTER TABLE spaces ADD COLUMN ${name} ${type}`);
   }
+
+  if (!hasColumn(db, 'users', 'full_name')) db.exec('ALTER TABLE users ADD COLUMN full_name TEXT');
+  db.exec("UPDATE users SET full_name = COALESCE(NULLIF(full_name, ''), username)");
 }
 
 function openDbStrict() {
@@ -120,6 +157,7 @@ function openDbStrict() {
   const db = new Database(DB_PATH, { fileMustExist: dbExists });
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+  db.pragma('busy_timeout = 5000');
   migrate(db);
 
   const row = db.prepare('SELECT value FROM meta WHERE key = ?').get('db_key_hash');
@@ -137,7 +175,7 @@ function needsBootstrap() { return db.prepare('SELECT COUNT(*) c FROM users').ge
 
 function issueToken(user) {
   const t = crypto.randomBytes(24).toString('base64url');
-  sessions.set(t, { userId: user.id, username: user.username, isAdmin: !!user.is_admin });
+  sessions.set(t, { userId: user.id, username: user.username, fullName: user.full_name, isAdmin: !!user.is_admin });
   return t;
 }
 
@@ -154,14 +192,29 @@ function requireAdmin(req, res, next) {
 }
 
 function overlaps(startA, endA, startB, endB) {
-  return startA < endB && startB < endA;
+  return startA <= endB && startB <= endA;
+}
+
+function addDaysISO(dateIso, days) {
+  const d = new Date(`${dateIso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+function suggestSpotLayout(index) {
+  if (index < 13) return { x: 18 + index * 93, y: 160, w: 70, h: 170, dir: 'down' };
+  if (index < 20) return { x: 550 + (index - 13) * 88, y: 485, w: 66, h: 165, dir: 'up' };
+  const i = index - 20;
+  const col = i % 10;
+  const row = Math.floor(i / 10);
+  return { x: 18 + col * 93, y: 160 + row * 210, w: 70, h: 170, dir: row % 2 === 0 ? 'down' : 'up' };
 }
 
 function bookingForDate(spaceId, dateIso) {
   return db.prepare(`
-    SELECT b.*, u.username FROM bookings b
+    SELECT b.*, u.full_name as full_name FROM bookings b
     JOIN users u ON u.id = b.user_id
-    WHERE b.space_id = ? AND b.start_date <= date(?) AND date(?) < b.end_date
+    WHERE b.space_id = ? AND b.start_date <= date(?) AND date(?) <= b.end_date
     ORDER BY b.id DESC LIMIT 1
   `).get(spaceId, `${dateIso}T12:00:00Z`, `${dateIso}T12:00:00Z`);
 }
@@ -171,34 +224,39 @@ app.get('/api/health', (req, res) => res.json({ ok: true, needsBootstrap: needsB
 app.post('/api/bootstrap', (req, res) => {
   if (!needsBootstrap()) return res.status(409).json({ error: 'Already bootstrapped' });
   const { adminPassword } = req.body || {};
-  if (!adminPassword || adminPassword.length < 8) return res.status(400).json({ error: 'adminPassword min 8 chars' });
-  db.prepare('INSERT INTO users(username,password_hash,is_admin,is_builtin_admin) VALUES (?,?,1,1)')
-    .run('admin', bcrypt.hashSync(adminPassword, 10));
+  if (!adminPassword || adminPassword.length < 4) return res.status(400).json({ error: 'adminPassword min 4 chars' });
+  db.prepare('INSERT INTO users(username,full_name,password_hash,is_admin,is_builtin_admin) VALUES (?,?,?,1,1)')
+    .run('admin', 'Administrator', bcrypt.hashSync(adminPassword, 10));
   res.json({ ok: true, username: 'admin' });
 });
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body || {};
-  const u = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const userId = normText(username, 64);
+  const u = db.prepare('SELECT * FROM users WHERE username = ?').get(userId);
   if (!u || !bcrypt.compareSync(password || '', u.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
   const token = issueToken(u);
-  res.json({ token, user: { id: u.id, username: u.username, isAdmin: !!u.is_admin } });
+  res.json({ token, user: { id: u.id, username: u.username, fullName: u.full_name, isAdmin: !!u.is_admin } });
 });
 
 app.get('/api/me', auth, (req, res) => res.json(req.auth));
 
 app.get('/api/users', auth, requireAdmin, (req, res) => {
-  const rows = db.prepare('SELECT id, username, is_admin as isAdmin, is_builtin_admin as isBuiltinAdmin FROM users ORDER BY username').all();
+  const rows = db.prepare('SELECT id, username, full_name as fullName, is_admin as isAdmin, is_builtin_admin as isBuiltinAdmin FROM users ORDER BY username').all();
   res.json(rows);
 });
 
 app.post('/api/users', auth, requireAdmin, (req, res) => {
-  const { username, password, isAdmin = false } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'username/password required' });
+  const { username, fullName, password, isAdmin = false } = req.body || {};
+  const userId = normText(username, 64);
+  const safeFullName = normText(fullName || username, 120);
+  if (!userId || !password) return res.status(400).json({ error: 'username/password required' });
+  if (!validUserId(userId)) return res.status(400).json({ error: 'Invalid user id format' });
+  if (password.length < 4) return res.status(400).json({ error: 'password min 4 chars' });
   try {
-    const out = db.prepare('INSERT INTO users(username,password_hash,is_admin) VALUES (?,?,?)')
-      .run(username.trim(), bcrypt.hashSync(password, 10), isAdmin ? 1 : 0);
-    res.json({ id: out.lastInsertRowid, username: username.trim(), isAdmin: !!isAdmin });
+    const out = db.prepare('INSERT INTO users(username,full_name,password_hash,is_admin) VALUES (?,?,?,?)')
+      .run(userId, safeFullName || userId, bcrypt.hashSync(password, 10), isAdmin ? 1 : 0);
+    res.json({ id: out.lastInsertRowid, username: userId, fullName: safeFullName || userId, isAdmin: !!isAdmin });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
@@ -206,8 +264,12 @@ app.patch('/api/users/:id', auth, requireAdmin, (req, res) => {
   const id = Number(req.params.id);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  if (user.is_builtin_admin) return res.status(400).json({ error: 'Built-in admin role cannot be changed' });
-  db.prepare('UPDATE users SET is_admin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.body?.isAdmin ? 1 : 0, id);
+  const nextFullName = normText(req.body?.fullName ?? user.full_name ?? user.username, 120);
+  if (user.is_builtin_admin) {
+    db.prepare('UPDATE users SET full_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(nextFullName || user.username, id);
+    return res.json({ ok: true });
+  }
+  db.prepare('UPDATE users SET is_admin = ?, full_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.body?.isAdmin ? 1 : 0, nextFullName || user.username, id);
   res.json({ ok: true });
 });
 
@@ -216,7 +278,19 @@ app.delete('/api/users/:id', auth, requireAdmin, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (user.is_builtin_admin) return res.status(400).json({ error: 'Built-in admin cannot be deleted' });
-  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+
+  const tx = db.transaction(() => {
+    // Clean related bookings first to avoid FK issues and keep delete predictable
+    db.prepare('DELETE FROM bookings WHERE user_id = ? OR created_by_user_id = ?').run(id, id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  });
+  tx();
+
+  // Invalidate active sessions for deleted user
+  for (const [token, sess] of sessions.entries()) {
+    if (sess.userId === id) sessions.delete(token);
+  }
+
   res.json({ ok: true });
 });
 
@@ -227,6 +301,12 @@ app.post('/api/users/:id/reset-password', auth, requireAdmin, (req, res) => {
   const newPlain = randomSimplePassword(6);
   db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(bcrypt.hashSync(newPlain, 10), id);
+
+  // Force logout for reset user: invalidate all active sessions
+  for (const [token, sess] of sessions.entries()) {
+    if (sess.userId === id) sessions.delete(token);
+  }
+
   res.json({ ok: true, temporaryPassword: newPlain });
 });
 
@@ -234,29 +314,33 @@ app.post('/api/me/change-password', auth, (req, res) => {
   const { oldPassword, newPassword } = req.body || {};
   const me = db.prepare('SELECT * FROM users WHERE id = ?').get(req.auth.userId);
   if (!bcrypt.compareSync(oldPassword || '', me.password_hash)) return res.status(400).json({ error: 'Wrong old password' });
-  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'newPassword min 8 chars' });
+  if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'newPassword min 4 chars' });
   db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(bcrypt.hashSync(newPassword, 10), me.id);
   res.json({ ok: true });
 });
 
-app.get('/api/floors', auth, (req, res) => res.json(db.prepare('SELECT * FROM floors ORDER BY id').all()));
+app.get('/api/floors', (req, res) => res.json(db.prepare('SELECT * FROM floors ORDER BY id').all()));
 
 app.post('/api/floors', auth, requireAdmin, (req, res) => {
-  const { name, imagePath = '' } = req.body || {};
-  if (!name) return res.status(400).json({ error: 'name required' });
-  const out = db.prepare('INSERT INTO floors(name,image_path) VALUES (?,?)').run(name.trim(), imagePath || null);
-  res.json({ id: out.lastInsertRowid });
+  const { name, imagePath = '', imageData = '', imageName = '' } = req.body || {};
+  const safeName = normText(name, 120);
+  if (!safeName) return res.status(400).json({ error: 'name required' });
+  let finalImagePath = imagePath || null;
+  if (imageData) finalImagePath = saveFloorImageFromData(imageData, imageName);
+  const out = db.prepare('INSERT INTO floors(name,image_path) VALUES (?,?)').run(safeName, finalImagePath);
+  res.json({ id: out.lastInsertRowid, imagePath: finalImagePath });
 });
 
 app.patch('/api/floors/:id', auth, requireAdmin, (req, res) => {
   const id = Number(req.params.id);
   const f = db.prepare('SELECT * FROM floors WHERE id = ?').get(id);
   if (!f) return res.status(404).json({ error: 'Floor not found' });
-  const name = req.body?.name ?? f.name;
-  const imagePath = req.body?.imagePath ?? f.image_path;
+  const name = normText(req.body?.name ?? f.name, 120);
+  let imagePath = req.body?.imagePath ?? f.image_path;
+  if (req.body?.imageData) imagePath = saveFloorImageFromData(req.body.imageData, req.body.imageName);
   db.prepare('UPDATE floors SET name = ?, image_path = ? WHERE id = ?').run(name, imagePath || null, id);
-  res.json({ ok: true });
+  res.json({ ok: true, imagePath: imagePath || null });
 });
 
 app.delete('/api/floors/:id', auth, requireAdmin, (req, res) => {
@@ -264,7 +348,7 @@ app.delete('/api/floors/:id', auth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/spaces', auth, (req, res) => {
+app.get('/api/spaces', (req, res) => {
   const floorId = Number(req.query.floorId);
   if (!floorId) return res.status(400).json({ error: 'floorId required' });
   res.json(db.prepare('SELECT * FROM spaces WHERE floor_id = ? ORDER BY space_number').all(floorId));
@@ -273,13 +357,24 @@ app.get('/api/spaces', auth, (req, res) => {
 app.post('/api/spaces', auth, requireAdmin, (req, res) => {
   const p = req.body || {};
   if (!p.floorId || !p.spaceNumber) return res.status(400).json({ error: 'floorId/spaceNumber required' });
+  const safeSpaceNumber = normText(p.spaceNumber, 32);
   try {
+    const count = db.prepare('SELECT COUNT(*) c FROM spaces WHERE floor_id = ?').get(p.floorId).c;
+    const auto = suggestSpotLayout(count);
     const out = db.prepare(`
       INSERT INTO spaces(floor_id,space_number,x,y,w,h,dir,map_x,map_y,map_zoom)
       VALUES (?,?,?,?,?,?,?,?,?,?)
     `).run(
-      p.floorId, String(p.spaceNumber), p.x ?? 30, p.y ?? 160, p.w ?? 72, p.h ?? 170,
-      p.dir ?? 'down', p.mapX ?? null, p.mapY ?? null, p.mapZoom ?? null
+      p.floorId,
+      safeSpaceNumber,
+      p.x ?? auto.x,
+      p.y ?? auto.y,
+      p.w ?? auto.w,
+      p.h ?? auto.h,
+      p.dir ?? auto.dir,
+      p.mapX ?? null,
+      p.mapY ?? null,
+      p.mapZoom ?? null
     );
     res.json({ id: out.lastInsertRowid });
   } catch (e) { res.status(400).json({ error: e.message }); }
@@ -290,11 +385,12 @@ app.patch('/api/spaces/:id', auth, requireAdmin, (req, res) => {
   const s = db.prepare('SELECT * FROM spaces WHERE id = ?').get(id);
   if (!s) return res.status(404).json({ error: 'Space not found' });
   const p = req.body || {};
+  const safeSpaceNumber = normText(p.spaceNumber ?? s.space_number, 32);
   db.prepare(`
     UPDATE spaces SET floor_id=?, space_number=?, x=?, y=?, w=?, h=?, dir=?, map_x=?, map_y=?, map_zoom=?
     WHERE id=?
   `).run(
-    p.floorId ?? s.floor_id, String(p.spaceNumber ?? s.space_number), p.x ?? s.x, p.y ?? s.y,
+    p.floorId ?? s.floor_id, safeSpaceNumber, p.x ?? s.x, p.y ?? s.y,
     p.w ?? s.w, p.h ?? s.h, p.dir ?? s.dir, p.mapX ?? s.map_x, p.mapY ?? s.map_y, p.mapZoom ?? s.map_zoom, id
   );
   res.json({ ok: true });
@@ -305,28 +401,40 @@ app.delete('/api/spaces/:id', auth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/bookings', auth, (req, res) => {
-  const floorId = Number(req.query.floorId);
-  if (!floorId) return res.status(400).json({ error: 'floorId required' });
-  const rows = db.prepare(`
-    SELECT b.*, u.username, s.space_number
-    FROM bookings b
-    JOIN users u ON u.id = b.user_id
-    JOIN spaces s ON s.id = b.space_id
-    WHERE b.floor_id = ?
-    ORDER BY b.start_date
-  `).all(floorId);
+app.get('/api/bookings', (req, res) => {
+  const floorId = Number(req.query.floorId || 0);
+  let rows;
+  if (floorId) {
+    rows = db.prepare(`
+      SELECT b.*, u.full_name as full_name, s.space_number, f.name as floor_name
+      FROM bookings b
+      JOIN users u ON u.id = b.user_id
+      JOIN spaces s ON s.id = b.space_id
+      JOIN floors f ON f.id = b.floor_id
+      WHERE b.floor_id = ?
+      ORDER BY b.start_date
+    `).all(floorId);
+  } else {
+    rows = db.prepare(`
+      SELECT b.*, u.full_name as full_name, s.space_number, f.name as floor_name
+      FROM bookings b
+      JOIN users u ON u.id = b.user_id
+      JOIN spaces s ON s.id = b.space_id
+      JOIN floors f ON f.id = b.floor_id
+      ORDER BY b.start_date
+    `).all();
+  }
   res.json(rows);
 });
 
-app.get('/api/availability', auth, (req, res) => {
+app.get('/api/availability', (req, res) => {
   const floorId = Number(req.query.floorId);
   const date = String(req.query.date || '');
   if (!floorId || !date) return res.status(400).json({ error: 'floorId/date required' });
   const spaces = db.prepare('SELECT * FROM spaces WHERE floor_id = ? ORDER BY space_number').all(floorId);
   const out = spaces.map(s => {
     const b = bookingForDate(s.id, date);
-    return { ...s, isBooked: !!b, bookingUser: b?.username || null, bookingId: b?.id || null, bookingOwnerId: b?.user_id || null, bookingEnd: b?.end_date || null };
+    return { ...s, isBooked: !!b, bookingUser: b?.full_name || null, bookingId: b?.id || null, bookingOwnerId: b?.user_id || null, bookingStart: b?.start_date || null, bookingEnd: b?.end_date || null };
   });
   res.json(out);
 });
@@ -336,7 +444,7 @@ app.post('/api/bookings', auth, (req, res) => {
   if (!p.floorId || !p.spaceId || !p.startDate || !p.endDate) return res.status(400).json({ error: 'floorId/spaceId/startDate/endDate required' });
   const start = p.startDate;
   const end = p.endDate;
-  if (new Date(`${start}T00:00:00Z`) >= new Date(`${end}T00:00:00Z`)) return res.status(400).json({ error: 'Invalid date range' });
+  if (new Date(`${start}T00:00:00Z`) > new Date(`${end}T00:00:00Z`)) return res.status(400).json({ error: 'Invalid date range' });
 
   const targetUserId = req.auth.isAdmin ? Number(p.userId || req.auth.userId) : req.auth.userId;
 
@@ -357,7 +465,7 @@ app.post('/api/bookings', auth, (req, res) => {
 });
 
 app.post('/api/bookings/release', auth, (req, res) => {
-  const { spaceId, date, userId } = req.body || {};
+  const { spaceId, date, userId, releaseStart, releaseEnd } = req.body || {};
   if (!spaceId || !date) return res.status(400).json({ error: 'spaceId/date required' });
   const b = bookingForDate(Number(spaceId), date);
   if (!b) return res.status(404).json({ error: 'No booking at selected date' });
@@ -365,31 +473,82 @@ app.post('/api/bookings/release', auth, (req, res) => {
   if (!req.auth.isAdmin && b.user_id !== req.auth.userId) return res.status(403).json({ error: 'Cannot release this booking' });
   if (req.auth.isAdmin && userId && Number(userId) !== b.user_id) return res.status(400).json({ error: 'Booking belongs to different user' });
 
-  db.prepare('DELETE FROM bookings WHERE id = ?').run(b.id);
+  const bookingStart = b.start_date;
+  const bookingEnd = b.end_date;
+  const oneDay = bookingStart === bookingEnd;
+
+  let rs = releaseStart || date;
+  let re = releaseEnd || date;
+
+  if (oneDay) {
+    rs = bookingStart;
+    re = bookingEnd;
+  }
+
+  if (new Date(`${rs}T00:00:00Z`) > new Date(`${re}T00:00:00Z`)) {
+    return res.status(400).json({ error: 'Invalid release range' });
+  }
+
+  // Clamp release range to booking period
+  if (rs < bookingStart) rs = bookingStart;
+  if (re > bookingEnd) re = bookingEnd;
+
+  if (!overlaps(rs, re, bookingStart, bookingEnd)) {
+    return res.status(400).json({ error: 'Release range does not overlap booking' });
+  }
+
+  // Full remove
+  if (rs <= bookingStart && re >= bookingEnd) {
+    db.prepare('DELETE FROM bookings WHERE id = ?').run(b.id);
+    return res.json({ ok: true });
+  }
+
+  // Trim start
+  if (rs <= bookingStart && re < bookingEnd) {
+    const newStart = addDaysISO(re, 1);
+    db.prepare('UPDATE bookings SET start_date = ? WHERE id = ?').run(newStart, b.id);
+    return res.json({ ok: true });
+  }
+
+  // Trim end
+  if (rs > bookingStart && re >= bookingEnd) {
+    const newEnd = addDaysISO(rs, -1);
+    db.prepare('UPDATE bookings SET end_date = ? WHERE id = ?').run(newEnd, b.id);
+    return res.json({ ok: true });
+  }
+
+  // Split in middle
+  const leftEnd = addDaysISO(rs, -1);
+  const rightStart = addDaysISO(re, 1);
+  const tx = db.transaction(() => {
+    db.prepare('UPDATE bookings SET end_date = ? WHERE id = ?').run(leftEnd, b.id);
+    db.prepare(`
+      INSERT INTO bookings(floor_id,space_id,user_id,start_date,end_date,created_by_user_id)
+      VALUES (?,?,?,?,?,?)
+    `).run(b.floor_id, b.space_id, b.user_id, rightStart, bookingEnd, b.created_by_user_id);
+  });
+  tx();
+
   res.json({ ok: true });
 });
 
-app.post('/api/seed-demo', auth, requireAdmin, (req, res) => {
-  const fCount = db.prepare('SELECT COUNT(*) c FROM floors').get().c;
-  if (!fCount) {
-    const f1 = db.prepare('INSERT INTO floors(name,image_path) VALUES (?,?)').run('Floor 1', './resources/parking-outside.png').lastInsertRowid;
-    const f2 = db.prepare('INSERT INTO floors(name,image_path) VALUES (?,?)').run('Floor 2', './resources/parking-minus-two.png').lastInsertRowid;
-    for (let i = 0; i < 13; i++) db.prepare('INSERT INTO spaces(floor_id,space_number,x,y,w,h,dir) VALUES (?,?,?,?,?,?,?)').run(f1, String(i).padStart(3, '0'), 18 + i * 93, 160, 70, 170, 'down');
-    for (let i = 0; i < 7; i++) db.prepare('INSERT INTO spaces(floor_id,space_number,x,y,w,h,dir) VALUES (?,?,?,?,?,?,?)').run(f1, String(13 + i).padStart(3, '0'), 550 + i * 88, 485, 66, 165, 'up');
-    for (let i = 0; i < 5; i++) db.prepare('INSERT INTO spaces(floor_id,space_number,x,y,w,h,dir) VALUES (?,?,?,?,?,?,?)').run(f2, String(20 + i).padStart(3, '0'), 170 + i * 95, 175, 72, 175, 'down');
-    for (let i = 0; i < 5; i++) db.prepare('INSERT INTO spaces(floor_id,space_number,x,y,w,h,dir) VALUES (?,?,?,?,?,?,?)').run(f2, String(25 + i).padStart(3, '0'), 610 + i * 95, 470, 72, 175, 'up');
+app.use((err, req, res, next) => {
+  const errorId = newErrorId('API');
+  const msg = String(err?.message || '');
+
+  if (/database is locked/i.test(msg)) {
+    console.error(`[${errorId}] SQLITE_LOCKED`, err);
+    return res.status(503).json({
+      error: 'Database is busy. Please retry in a moment.',
+      errorId
+    });
   }
 
-  const admin = db.prepare('SELECT * FROM users WHERE username = ?').get('admin');
-  if (admin) {
-    const any = db.prepare('SELECT COUNT(*) c FROM bookings').get().c;
-    if (!any) {
-      const s = db.prepare('SELECT * FROM spaces ORDER BY id LIMIT 1').get();
-      if (s) db.prepare('INSERT INTO bookings(floor_id,space_id,user_id,start_date,end_date,created_by_user_id) VALUES (?,?,?,?,?,?)')
-        .run(s.floor_id, s.id, admin.id, todayISO(), addDays(todayISO(), 2), admin.id);
-    }
-  }
-  res.json({ ok: true });
+  console.error(`[${errorId}] UNHANDLED`, err);
+  return res.status(500).json({
+    error: 'Unexpected server error. Please contact support and provide error id.',
+    errorId
+  });
 });
 
 app.use(express.static(ROOT));
