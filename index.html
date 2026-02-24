@@ -232,7 +232,7 @@ function setAuthUI() {
   $('currentUserLabel').textContent = `User: ${state.me ? (state.me.fullName || state.me.username) : 'guest'}`;
   $('openLoginPanel').style.display = state.me ? 'none' : 'inline-block';
   $('openAdminPanel').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
-  $('openChangePasswordPanel').style.display = state.me ? 'inline-block' : 'none';
+  $('openChangePasswordPanel').style.display = (state.me && !state.me.authProvider) ? 'inline-block' : 'none';
   $('logoutBtn').style.display = state.me ? 'inline-block' : 'none';
   $('loginMicrosoft').style.display = state.ssoEnabled ? 'inline-block' : 'none';
   $('ssoHint').style.display = state.ssoEnabled ? 'block' : 'none';
@@ -520,6 +520,7 @@ function openUserEditor(isEdit = false) {
   $('userEditor').style.display = 'block';
   $('createUserBtn').textContent = isEdit ? 'Save user' : 'Create user';
   $('newUsername').disabled = isEdit;
+  $('newUserPassword').style.display = isEdit ? 'none' : 'inline-block';
   $('newUserPassword').placeholder = isEdit ? 'password change via reset button' : 'password (required for new user)';
   $('resetUserPwBtn').style.display = isEdit ? 'inline-block' : 'none';
 }
@@ -580,7 +581,7 @@ async function loadAdminLists() {
   state.users = await api('/api/users');
   const floors = await api('/api/floors');
   state.floors = floors;
-  $('usersList').innerHTML = state.users.map(u => `<div onclick="selectUserForEdit(${u.id})" style="cursor:pointer;${state.selectedUserEditId===u.id?'background:#15244d;':''}">${u.fullName || u.username} <span class=\"muted\">(${u.username})</span> ${u.isAdmin?'(admin)':''} ${u.isBuiltinAdmin?'<span class=\"muted\">built-in</span>':''} ${u.isBuiltinAdmin?'':`<button class=\"danger\" onclick=\"event.stopPropagation();delUser(${u.id})\">delete</button>`}</div>`).join('') || '<div>No users</div>';
+  $('usersList').innerHTML = state.users.map(u => `<div onclick="selectUserForEdit(${u.id})" style="cursor:pointer;${state.selectedUserEditId===u.id?'background:#15244d;':''}">${u.fullName || u.username} <span class=\"muted\">(${u.username})</span> ${u.isAdmin?'(admin)':''} ${u.authProvider?`<span class=\"muted\">sso:${esc(u.authProvider)}</span>`:''} ${u.isBuiltinAdmin?'<span class=\"muted\">built-in</span>':''} ${u.isBuiltinAdmin?'':`<button class=\"danger\" onclick=\"event.stopPropagation();delUser(${u.id})\">delete</button>`}</div>`).join('') || '<div>No users</div>';
   $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${state.selectedFloorEditId===f.id?'background:#15244d;':''}">#${f.id} ${esc(f.name)}${f.image_path ? ' · <span class=\"muted\">image set</span>' : ''} <button onclick="event.stopPropagation();delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
 
   const current = Number($('spaceFloorFilter').value || 0);
@@ -606,6 +607,7 @@ function selectUserForEdit(id) {
     $('newUserAdmin').disabled = false;
     $('createUserBtn').disabled = false;
   }
+  $('resetUserPwBtn').style.display = u.authProvider ? 'none' : 'inline-block';
   loadAdminLists();
 }
 

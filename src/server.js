@@ -221,7 +221,13 @@ function needsBootstrap() { return db.prepare('SELECT COUNT(*) c FROM users').ge
 
 function issueToken(user) {
   const t = crypto.randomBytes(24).toString('base64url');
-  sessions.set(t, { userId: user.id, username: user.username, fullName: user.full_name, isAdmin: !!user.is_admin });
+  sessions.set(t, {
+    userId: user.id,
+    username: user.username,
+    fullName: user.full_name,
+    isAdmin: !!user.is_admin,
+    authProvider: user.auth_provider || null
+  });
   return t;
 }
 
@@ -373,13 +379,13 @@ app.post('/api/login', (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE username = ?').get(userId);
   if (!u || !bcrypt.compareSync(password || '', u.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
   const token = issueToken(u);
-  res.json({ token, user: { id: u.id, username: u.username, fullName: u.full_name, isAdmin: !!u.is_admin } });
+  res.json({ token, user: { id: u.id, username: u.username, fullName: u.full_name, isAdmin: !!u.is_admin, authProvider: u.auth_provider || null } });
 });
 
 app.get('/api/me', auth, (req, res) => res.json(req.auth));
 
 app.get('/api/users', auth, requireAdmin, (req, res) => {
-  const rows = db.prepare('SELECT id, username, full_name as fullName, is_admin as isAdmin, is_builtin_admin as isBuiltinAdmin FROM users ORDER BY username').all();
+  const rows = db.prepare('SELECT id, username, full_name as fullName, is_admin as isAdmin, is_builtin_admin as isBuiltinAdmin, auth_provider as authProvider FROM users ORDER BY username').all();
   res.json(rows);
 });
 
@@ -435,6 +441,7 @@ app.post('/api/users/:id/reset-password', auth, requireAdmin, (req, res) => {
   const id = Number(req.params.id);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.auth_provider) return res.status(400).json({ error: 'Password reset is not available for SSO users' });
   const newPlain = randomSimplePassword(6);
   db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(bcrypt.hashSync(newPlain, 10), id);
