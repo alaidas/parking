@@ -87,6 +87,7 @@
     <button class="admin-tab-btn" data-tab="settings">Settings</button>
     <button id="adminClose" style="margin-left:auto">Close</button>
   </div>
+  <div id="adminLoading" class="muted" style="display:none; margin-bottom:10px;">Loading admin data…</div>
 
   <div class="admin-tab-pane" id="tab-users">
     <div class="admin-block"><b>Users</b>
@@ -147,10 +148,29 @@
   </div>
 
   <div class="admin-tab-pane" id="tab-settings" style="display:none">
-    <div class="admin-block"><b>Settings</b>
+    <div class="admin-block"><b>Settings · Microsoft SSO</b>
+      <div class="row" style="max-width:560px; margin-top:10px;">
+        <label class="muted">Tenant ID</label>
+        <input id="ssoTenantId" placeholder="common or your tenant id" />
+      </div>
+      <div class="row" style="max-width:560px;">
+        <label class="muted">Client ID</label>
+        <input id="ssoClientId" placeholder="Azure App Client ID" />
+      </div>
+      <div class="row" style="max-width:560px;">
+        <label class="muted">Client Secret</label>
+        <input id="ssoClientSecret" type="password" placeholder="Leave empty to keep current secret" />
+        <span class="muted" id="ssoSecretState">Secret: not set</span>
+      </div>
+      <div class="row" style="max-width:560px;">
+        <label class="muted">Redirect URI</label>
+        <input id="ssoRedirectUri" placeholder="http://localhost:3000/api/auth/microsoft/callback" />
+      </div>
       <div class="actions" style="margin-bottom:8px;">
-        <button id="toggleSsoBtn">Enable Microsoft SSO</button>
-        <span class="muted" id="ssoStatusLabel">SSO: disabled</span>
+        <label class="muted"><input id="ssoEnabled" type="checkbox" /> Enable Microsoft SSO</label>
+      </div>
+      <div class="actions" style="margin-bottom:8px;">
+        <button class="btn-primary" id="saveSsoBtn">Save SSO settings</button>
       </div>
     </div>
   </div>
@@ -524,16 +544,32 @@ async function changePassword() {
   }
 }
 
+function setLoginLoading(on) {
+  const modal = $('loginModal')?.querySelector('.modal');
+  if (modal) {
+    modal.style.opacity = on ? '0.55' : '1';
+    modal.style.filter = on ? 'grayscale(0.35)' : 'none';
+  }
+  $('loginUser').disabled = !!on;
+  $('loginPassword').disabled = !!on;
+  $('loginConfirm').disabled = !!on;
+  $('loginMicrosoft').disabled = !!on;
+  $('loginClose').disabled = !!on;
+}
+
 function startMicrosoftLogin() {
+  setLoginLoading(true);
   window.location.href = '/api/auth/microsoft/start';
 }
 
 async function doLogin() {
+  setLoginLoading(true);
   try {
     const out = await api('/api/login', { method:'POST', body: JSON.stringify({ username: $('loginUser').value.trim(), password: $('loginPassword').value })});
     state.token = out.token; state.me = { ...out.user, userId: out.user.id };
     $('loginModal').style.display='none'; setAuthUI(); await refreshAll();
   } catch (e) { uiAlert(e.message); }
+  finally { setLoginLoading(false); }
 }
 
 async function checkBootstrap() {
@@ -601,24 +637,32 @@ function switchAdminTab(tabName) {
 }
 
 async function loadAdminLists() {
-  const sso = await api('/api/admin/sso');
-  state.ssoEnabled = !!sso.enabled;
-  state.ssoConfigured = !!sso.configured;
-  $('ssoStatusLabel').textContent = `SSO: ${state.ssoEnabled ? 'enabled' : 'disabled'}${state.ssoConfigured ? '' : ' (not configured)'}`;
-  $('toggleSsoBtn').textContent = state.ssoEnabled ? 'Disable Microsoft SSO' : 'Enable Microsoft SSO';
-  $('toggleSsoBtn').disabled = !state.ssoConfigured && !state.ssoEnabled;
+  $('adminLoading').style.display = 'block';
+  try {
+    const sso = await api('/api/admin/sso');
+    state.ssoEnabled = !!sso.enabled;
+    state.ssoConfigured = !!sso.configured;
+    $('ssoTenantId').value = sso.tenantId || 'common';
+    $('ssoClientId').value = sso.clientId || '';
+    $('ssoRedirectUri').value = sso.redirectUri || '';
+    $('ssoEnabled').checked = !!sso.enabled;
+    $('ssoSecretState').textContent = sso.hasClientSecret ? 'Secret: set' : 'Secret: not set';
+    $('ssoClientSecret').value = '';
 
-  state.users = await api('/api/users');
-  const floors = await api('/api/floors');
-  state.floors = floors;
-  renderUsersList();
-  $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${state.selectedFloorEditId===f.id?'background:#15244d;':''}">#${f.id} ${esc(f.name)}${f.image_path ? ' · <span class=\"muted\">image set</span>' : ''} <button onclick="event.stopPropagation();delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
+    state.users = await api('/api/users');
+    const floors = await api('/api/floors');
+    state.floors = floors;
+    renderUsersList();
+    $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${state.selectedFloorEditId===f.id?'background:#15244d;':''}">#${f.id} ${esc(f.name)}${f.image_path ? ' · <span class=\"muted\">image set</span>' : ''} <button onclick="event.stopPropagation();delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
 
-  const current = Number($('spaceFloorFilter').value || 0);
-  $('spaceFloorFilter').innerHTML = floors.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('') || '<option value="">No floors</option>';
-  if (current && floors.some(f => f.id === current)) $('spaceFloorFilter').value = String(current);
-  if (!$('spaceFloorFilter').value && floors[0]) $('spaceFloorFilter').value = String(floors[0].id);
-  await loadSpacesList();
+    const current = Number($('spaceFloorFilter').value || 0);
+    $('spaceFloorFilter').innerHTML = floors.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('') || '<option value="">No floors</option>';
+    if (current && floors.some(f => f.id === current)) $('spaceFloorFilter').value = String(current);
+    if (!$('spaceFloorFilter').value && floors[0]) $('spaceFloorFilter').value = String(floors[0].id);
+    await loadSpacesList();
+  } finally {
+    $('adminLoading').style.display = 'none';
+  }
 }
 
 function renderUsersList() {
@@ -670,11 +714,21 @@ function selectFloorForEdit(id) {
 
 window.resetPw = resetPw; window.delUser = delUser; window.delFloor = delFloor; window.selectFloorForEdit = selectFloorForEdit; window.selectUserForEdit = selectUserForEdit; window.selectSpaceForEdit = selectSpaceForEdit; window.delSpace = delSpace; window.openBookingFromList = openBookingFromList;
 
-async function toggleSso() {
+async function saveSsoSettings() {
   try {
-    await api('/api/admin/sso/toggle', { method:'POST', body: JSON.stringify({ enabled: !state.ssoEnabled }) });
+    const payload = {
+      tenantId: $('ssoTenantId').value.trim() || 'common',
+      clientId: $('ssoClientId').value.trim(),
+      redirectUri: $('ssoRedirectUri').value.trim(),
+      enabled: $('ssoEnabled').checked
+    };
+    const secret = $('ssoClientSecret').value;
+    if (secret) payload.clientSecret = secret;
+
+    await api('/api/admin/sso', { method:'POST', body: JSON.stringify(payload) });
     await loadAdminLists();
     await refreshSsoStatus();
+    await uiAlert('SSO settings saved', 'Settings');
   } catch (e) { uiAlert(e.message); }
 }
 
@@ -828,7 +882,7 @@ async function createSpace() {
 (function init(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('viewDate').value = d.toISOString().slice(0,10);
 
-  $('openLoginPanel').onclick = ()=> $('loginModal').style.display='flex'; $('loginClose').onclick = ()=> $('loginModal').style.display='none'; $('loginConfirm').onclick = doLogin; $('loginMicrosoft').onclick = startMicrosoftLogin;
+  $('openLoginPanel').onclick = ()=> { setLoginLoading(false); $('loginModal').style.display='flex'; }; $('loginClose').onclick = ()=> { setLoginLoading(false); $('loginModal').style.display='none'; }; $('loginConfirm').onclick = doLogin; $('loginMicrosoft').onclick = startMicrosoftLogin;
   $('openChangePasswordPanel').onclick = ()=> $('changePasswordModal').style.display='flex';
   $('changePasswordClose').onclick = ()=> $('changePasswordModal').style.display='none';
   $('changePasswordConfirm').onclick = changePassword;
@@ -848,7 +902,7 @@ async function createSpace() {
     btn.addEventListener('click', () => switchAdminTab(btn.dataset.tab));
   });
   $('adminClose').onclick = ()=> $('adminModal').style.display='none';
-  $('createUserBtn').onclick = createUser; $('createFloorBtn').onclick = createFloor; $('createSpaceBtn').onclick = createSpace; $('toggleSsoBtn').onclick = toggleSso;
+  $('createUserBtn').onclick = createUser; $('createFloorBtn').onclick = createFloor; $('createSpaceBtn').onclick = createSpace; $('saveSsoBtn').onclick = saveSsoSettings;
   $('createNewUserBtn').onclick = () => { closeUserEditor(); openUserEditor(false); };
   $('cancelUserEdit').onclick = () => closeUserEditor();
   $('resetUserPwBtn').onclick = async () => {

@@ -16,10 +16,6 @@ const DB_PATH = path.join(DATA_DIR, 'parking.sqlite3');
 const DB_KEY_PATH = path.join(SECRETS_DIR, 'db-access.key');
 const UPLOADS_DIR = path.join(ROOT, 'uploads');
 const FLOOR_UPLOADS_DIR = path.join(UPLOADS_DIR, 'floors');
-const MS_TENANT_ID = process.env.MS_TENANT_ID || 'common';
-const MS_CLIENT_ID = process.env.MS_CLIENT_ID || '';
-const MS_CLIENT_SECRET = process.env.MS_CLIENT_SECRET || '';
-const MS_REDIRECT_URI = process.env.MS_REDIRECT_URI || `http://localhost:${PORT}/api/auth/microsoft/callback`;
 
 const sessions = new Map();
 const oauthStates = new Map();
@@ -86,8 +82,49 @@ function isSsoEnabled() {
   return getMeta('sso_enabled', '0') === '1';
 }
 
+function cryptoKey() {
+  const baseKey = fs.existsSync(DB_KEY_PATH) ? fs.readFileSync(DB_KEY_PATH, 'utf8').trim() : 'dev-fallback-key';
+  return crypto.createHash('sha256').update(baseKey).digest();
+}
+
+function encryptSecret(plain = '') {
+  const text = String(plain || '');
+  if (!text) return '';
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', cryptoKey(), iv);
+  const enc = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('base64')}.${tag.toString('base64')}.${enc.toString('base64')}`;
+}
+
+function decryptSecret(blob = '') {
+  const parts = String(blob || '').split('.');
+  if (parts.length !== 3) return '';
+  try {
+    const iv = Buffer.from(parts[0], 'base64');
+    const tag = Buffer.from(parts[1], 'base64');
+    const enc = Buffer.from(parts[2], 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', cryptoKey(), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
+function ssoSettings() {
+  const redirectFallback = `http://localhost:${PORT}/api/auth/microsoft/callback`;
+  return {
+    tenantId: getMeta('sso_tenant_id', 'common'),
+    clientId: getMeta('sso_client_id', ''),
+    clientSecretEncrypted: getMeta('sso_client_secret_enc', ''),
+    redirectUri: getMeta('sso_redirect_uri', redirectFallback)
+  };
+}
+
 function isSsoConfigured() {
-  return Boolean(MS_CLIENT_ID && MS_CLIENT_SECRET && MS_REDIRECT_URI);
+  const s = ssoSettings();
+  return Boolean(s.clientId && s.clientSecretEncrypted && s.redirectUri);
 }
 
 function b64urlJsonDecode(part) {
@@ -278,30 +315,59 @@ app.get('/api/auth/sso/status', (req, res) => {
 });
 
 app.get('/api/admin/sso', auth, requireAdmin, (req, res) => {
-  res.json({ enabled: isSsoEnabled(), configured: isSsoConfigured(), redirectUri: MS_REDIRECT_URI });
+  const s = ssoSettings();
+  res.json({
+    enabled: isSsoEnabled(),
+    configured: isSsoConfigured(),
+    tenantId: s.tenantId,
+    clientId: s.clientId,
+    redirectUri: s.redirectUri,
+    hasClientSecret: !!s.clientSecretEncrypted
+  });
 });
 
-app.post('/api/admin/sso/toggle', auth, requireAdmin, (req, res) => {
-  const enable = !!req.body?.enabled;
-  if (enable && !isSsoConfigured()) {
-    return res.status(400).json({ error: 'Microsoft SSO is not configured on server' });
+app.post('/api/admin/sso', auth, requireAdmin, (req, res) => {
+  const p = req.body || {};
+  const tenantId = normText(p.tenantId || 'common', 120) || 'common';
+  const clientId = normText(p.clientId || '', 256);
+  const redirectUri = normText(p.redirectUri || `http://localhost:${PORT}/api/auth/microsoft/callback`, 512);
+  const enabled = !!p.enabled;
+
+  if (redirectUri && !/^https?:\/\//i.test(redirectUri)) {
+    return res.status(400).json({ error: 'redirectUri must be http(s) URL' });
   }
-  setMeta('sso_enabled', enable ? '1' : '0');
-  res.json({ ok: true, enabled: enable });
+
+  setMeta('sso_tenant_id', tenantId);
+  setMeta('sso_client_id', clientId);
+  setMeta('sso_redirect_uri', redirectUri);
+
+  const hasSecretInPayload = Object.prototype.hasOwnProperty.call(p, 'clientSecret');
+  if (hasSecretInPayload) {
+    const sec = String(p.clientSecret || '').trim();
+    setMeta('sso_client_secret_enc', sec ? encryptSecret(sec) : '');
+  }
+
+  if (enabled && !isSsoConfigured()) {
+    return res.status(400).json({ error: 'Provide tenant/client/secret/redirect before enabling SSO' });
+  }
+
+  setMeta('sso_enabled', enabled ? '1' : '0');
+  res.json({ ok: true, enabled, configured: isSsoConfigured() });
 });
 
 app.get('/api/auth/microsoft/start', (req, res) => {
   if (!isSsoEnabled()) return res.status(400).send('SSO is disabled');
   if (!isSsoConfigured()) return res.status(400).send('SSO not configured');
 
+  const cfg = ssoSettings();
   const state = crypto.randomBytes(16).toString('hex');
   const nonce = crypto.randomBytes(16).toString('hex');
   oauthStates.set(state, { nonce, createdAt: Date.now() });
 
-  const authUrl = new URL(`https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/authorize`);
-  authUrl.searchParams.set('client_id', MS_CLIENT_ID);
+  const authUrl = new URL(`https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/authorize`);
+  authUrl.searchParams.set('client_id', cfg.clientId);
   authUrl.searchParams.set('response_type', 'code');
-  authUrl.searchParams.set('redirect_uri', MS_REDIRECT_URI);
+  authUrl.searchParams.set('redirect_uri', cfg.redirectUri);
   authUrl.searchParams.set('response_mode', 'query');
   authUrl.searchParams.set('scope', 'openid profile email');
   authUrl.searchParams.set('state', state);
@@ -320,12 +386,16 @@ app.get('/api/auth/microsoft/callback', async (req, res) => {
     if (!code || !stateRow) return res.redirect('/?sso_error=invalid_state');
     if (Date.now() - stateRow.createdAt > 10 * 60 * 1000) return res.redirect('/?sso_error=state_expired');
 
-    const tokenUrl = `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/token`;
+    const cfg = ssoSettings();
+    const secret = decryptSecret(cfg.clientSecretEncrypted);
+    if (!cfg.clientId || !cfg.redirectUri || !secret) return res.redirect('/?sso_error=sso_not_configured');
+
+    const tokenUrl = `https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/token`;
     const body = new URLSearchParams();
-    body.set('client_id', MS_CLIENT_ID);
-    body.set('client_secret', MS_CLIENT_SECRET);
+    body.set('client_id', cfg.clientId);
+    body.set('client_secret', secret);
     body.set('code', code);
-    body.set('redirect_uri', MS_REDIRECT_URI);
+    body.set('redirect_uri', cfg.redirectUri);
     body.set('grant_type', 'authorization_code');
 
     const tokenResp = await fetch(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
