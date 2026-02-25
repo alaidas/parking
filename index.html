@@ -66,14 +66,14 @@
     </div>
   </div>
 
-  <div class="panel" style="margin-top:14px;"><div class="title">Bookings (all floors)</div><div class="row" style="max-width:340px; margin-top:8px;"><input id="bookingSearch" placeholder="Search booked by user" /></div><table><thead><tr><th>Floor</th><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
+  <div class="panel" id="bookingsSection" style="margin-top:14px;"><div class="title" id="bookingsTitle">Bookings</div><div class="row" style="max-width:340px; margin-top:8px;"><input id="bookingSearch" placeholder="Search booked by user" /></div><table><thead><tr><th>Floor</th><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
 </div>
 
-<div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password (min 4 chars)</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
+<div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
 
 <div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="muted" id="ssoHint" style="display:none; margin-bottom:8px;">Microsoft SSO is available. You can use either SSO or user/password.</div><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button id="loginMicrosoft" style="display:none">Continue with Microsoft</button><button id="loginClose">Close</button></div></div></div>
 
-<div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password (min 4 chars)</label><input id="newPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
+<div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
 
 <div class="overlay" id="bookingModal"><div class="modal" style="max-width:500px"><h3>Book spot <span id="modalSpot"></span></h3><div class="row"><label class="muted">Booked by user</label><select id="bookUser"></select></div><div class="row"><label class="muted">Start date</label><input id="startAt" type="date"/></div><div class="row" id="endAtRow" style="display:none"><label class="muted">End date</label><input id="endAt" type="date"/></div><div class="row" id="durationRow"><label class="muted">Period</label><select id="durationDays"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option></select></div><div class="actions"><button class="btn-primary" id="saveBooking">Confirm booking</button><button id="cancelBooking">Cancel</button></div></div></div>
 
@@ -84,15 +84,13 @@
     <button class="admin-tab-btn btn-primary" data-tab="users">Users</button>
     <button class="admin-tab-btn" data-tab="floors">Floors</button>
     <button class="admin-tab-btn" data-tab="spaces">Spaces</button>
+    <button class="admin-tab-btn" data-tab="settings">Settings</button>
     <button id="adminClose" style="margin-left:auto">Close</button>
   </div>
 
   <div class="admin-tab-pane" id="tab-users">
     <div class="admin-block"><b>Users</b>
-      <div class="actions" style="margin-bottom:8px;">
-        <button id="toggleSsoBtn">Enable Microsoft SSO</button>
-        <span class="muted" id="ssoStatusLabel">SSO: disabled</span>
-      </div>
+      <div class="row" style="max-width:340px; margin:8px 0;"><input id="userSearch" placeholder="Filter by full name or username" /></div>
       <div id="userEditor" style="display:none; margin-bottom:10px;">
         <div class="row">
           <input id="newUsername" placeholder="user id"/>
@@ -145,6 +143,15 @@
 
       <div class="list" id="spacesList"></div>
       <div class="actions"><button id="createNewSpaceBtn" class="btn-primary">Create new</button></div>
+    </div>
+  </div>
+
+  <div class="admin-tab-pane" id="tab-settings" style="display:none">
+    <div class="admin-block"><b>Settings</b>
+      <div class="actions" style="margin-bottom:8px;">
+        <button id="toggleSsoBtn">Enable Microsoft SSO</button>
+        <span class="muted" id="ssoStatusLabel">SSO: disabled</span>
+      </div>
     </div>
   </div>
 </div></div>
@@ -236,6 +243,16 @@ function setAuthUI() {
   $('logoutBtn').style.display = state.me ? 'inline-block' : 'none';
   $('loginMicrosoft').style.display = state.ssoEnabled ? 'inline-block' : 'none';
   $('ssoHint').style.display = state.ssoEnabled ? 'block' : 'none';
+
+  const bookingsTitle = $('bookingsTitle');
+  if (bookingsTitle) {
+    bookingsTitle.textContent = state.me?.isAdmin ? 'Bookings' : (state.me ? 'My bookings' : 'Bookings');
+  }
+
+  const bookingsSection = $('bookingsSection');
+  if (bookingsSection) {
+    bookingsSection.style.display = state.me ? 'block' : 'none';
+  }
 }
 
 async function refreshSsoStatus() {
@@ -251,14 +268,18 @@ async function refreshAll() {
   renderFloorSelect();
   if (!floor() && state.floors[0]) $('floorSelect').value = state.floors[0].id;
   await refreshFloorData();
+  await refreshBookings();
   render();
+}
+
+async function refreshBookings() {
+  state.bookings = state.me ? await api('/api/bookings') : [];
 }
 
 async function refreshFloorData() {
   if (!floor()) return;
   state.spaces = await api(`/api/spaces?floorId=${floor()}`);
   state.availability = await api(`/api/availability?floorId=${floor()}&date=${encodeURIComponent(getViewDate())}`);
-  state.bookings = await api('/api/bookings');
   if (state.me?.isAdmin) state.users = await api('/api/users');
 }
 
@@ -316,7 +337,15 @@ function renderMap() {
     rect.setAttribute('class','spot-rect'); rect.setAttribute('x', d.x); rect.setAttribute('y', d.y); rect.setAttribute('width', d.w); rect.setAttribute('height', d.h);
     const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
     txt.setAttribute('class','spot-label'); txt.setAttribute('x', d.x + d.w / 2); txt.setAttribute('y', d.y + d.h / 2); txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle'); txt.textContent=s.space_number;
-    g.append(rect,txt); g.onclick = ()=>{ state.selectedSpot=s.id; render(); }; layer.appendChild(g);
+    const isOwnBooking = Number(s.bookingOwnerId) === Number(state.me?.userId);
+    const blockedForViewer = !!s.isBooked && (!state.me || (!state.me?.isAdmin && !isOwnBooking));
+    g.append(rect,txt);
+    if (!blockedForViewer) {
+      g.onclick = ()=>{ state.selectedSpot=s.id; render(); };
+    } else {
+      g.style.cursor = 'not-allowed';
+    }
+    layer.appendChild(g);
   }
 }
 
@@ -326,7 +355,8 @@ function renderDetails() {
   if (!s) { $('spotHint').textContent = 'Select a spot from the map'; return; }
   const f = currentFloorObj();
   $('spotHint').textContent = `${f?.name || ''} · Spot ${s.space_number}`;
-  $('details').innerHTML = `<div><b>Status:</b> ${s.isBooked?'Booked':'Free'}</div>${s.isBooked?`<div><b>User:</b> ${esc(s.bookingUser)}</div><div><b>Start:</b> ${esc(fmtDate(s.bookingStart))}</div><div><b>End:</b> ${esc(fmtDate(s.bookingEnd))}</div>`:''}`;
+  const canSeeBookingDetails = !!state.me && (state.me?.isAdmin || s.bookingOwnerId === state.me?.userId);
+  $('details').innerHTML = `<div><b>Status:</b> ${s.isBooked?'Booked':'Free'}</div>${s.isBooked && canSeeBookingDetails?`<div><b>User:</b> ${esc(s.bookingUser)}</div><div><b>Start:</b> ${esc(fmtDate(s.bookingStart))}</div><div><b>End:</b> ${esc(fmtDate(s.bookingEnd))}</div>`:''}`;
 
   const map = $('mapMiniView');
   map.style.backgroundImage = f?.image_path ? `url(${f.image_path})` : 'none';
@@ -363,11 +393,11 @@ async function openBookingFromList(spaceId, startDate, endDate, floorId) {
 }
 
 function renderTable() {
-  const at = getViewDate();
+  const today = new Date().toISOString().slice(0,10);
   const search = $('bookingSearch').value.trim().toLowerCase();
   const rows = state.bookings.filter(b => {
     if (!search) return true;
-    const st = (b.start_date <= at && at <= b.end_date) ? 'active' : (b.start_date > at ? 'booked' : 'ended');
+    const st = (b.start_date <= today && today <= b.end_date) ? 'active' : 'booked';
     const haystack = [
       String(b.floor_name || ''),
       String(b.space_number || ''),
@@ -377,14 +407,13 @@ function renderTable() {
       String(b.end_date || ''),
       fmtDate(b.start_date || ''),
       fmtDate(b.end_date || ''),
-      st,
-      at
+      st
     ].join(' ').toLowerCase();
     return haystack.includes(search);
   });
 
   $('bookingRows').innerHTML = rows.map(b => {
-    const st = (b.start_date <= at && at <= b.end_date) ? 'Active' : (b.start_date > at ? 'Booked' : 'Ended');
+    const st = (b.start_date <= today && today <= b.end_date) ? 'Active' : 'Booked';
     const clickable = !!state.me;
     return `<tr ${clickable ? `onclick="openBookingFromList(${b.space_id}, '${b.start_date}', '${b.end_date}', ${b.floor_id})" style="cursor:pointer;"` : ''}><td>${esc(b.floor_name || '-')}</td><td>${esc(b.space_number)}</td><td>${esc(b.full_name || b.username)}</td><td>${esc(fmtDate(b.start_date))}</td><td>${esc(fmtDate(b.end_date))}</td><td>${esc(st)}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="muted">No bookings</td></tr>';
@@ -442,7 +471,7 @@ async function saveBooking() {
 
   const payload = { floorId: floor(), spaceId: s.id, startDate:start, endDate:end };
   if (state.me?.isAdmin) payload.userId = Number($('bookUser').value);
-  try { await api('/api/bookings', { method:'POST', body: JSON.stringify(payload) }); $('bookingModal').style.display='none'; await refreshFloorData(); render(); }
+  try { await api('/api/bookings', { method:'POST', body: JSON.stringify(payload) }); $('bookingModal').style.display='none'; await refreshFloorData(); await refreshBookings(); render(); }
   catch (e) { uiAlert(e.message); }
 }
 
@@ -474,6 +503,7 @@ async function releaseBooking() {
     await api('/api/bookings/release', { method:'POST', body: JSON.stringify(payload)});
     $('releaseModal').style.display = 'none';
     await refreshFloorData();
+    await refreshBookings();
     render();
   } catch (e) { uiAlert(e.message); }
 }
@@ -552,7 +582,7 @@ function closeFloorEditor() {
 }
 
 function switchAdminTab(tabName) {
-  const tabs = ['users', 'floors', 'spaces'];
+  const tabs = ['users', 'floors', 'spaces', 'settings'];
   tabs.forEach(name => {
     const pane = $(`tab-${name}`);
     if (pane) pane.style.display = name === tabName ? 'block' : 'none';
@@ -581,7 +611,7 @@ async function loadAdminLists() {
   state.users = await api('/api/users');
   const floors = await api('/api/floors');
   state.floors = floors;
-  $('usersList').innerHTML = state.users.map(u => `<div onclick="selectUserForEdit(${u.id})" style="cursor:pointer;${state.selectedUserEditId===u.id?'background:#15244d;':''}">${u.fullName || u.username} <span class=\"muted\">(${u.username})</span> ${u.isAdmin?'(admin)':''} ${u.authProvider?`<span class=\"muted\">sso:${esc(u.authProvider)}</span>`:''} ${u.isBuiltinAdmin?'<span class=\"muted\">built-in</span>':''} ${u.isBuiltinAdmin?'':`<button class=\"danger\" onclick=\"event.stopPropagation();delUser(${u.id})\">delete</button>`}</div>`).join('') || '<div>No users</div>';
+  renderUsersList();
   $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${state.selectedFloorEditId===f.id?'background:#15244d;':''}">#${f.id} ${esc(f.name)}${f.image_path ? ' · <span class=\"muted\">image set</span>' : ''} <button onclick="event.stopPropagation();delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
 
   const current = Number($('spaceFloorFilter').value || 0);
@@ -589,6 +619,18 @@ async function loadAdminLists() {
   if (current && floors.some(f => f.id === current)) $('spaceFloorFilter').value = String(current);
   if (!$('spaceFloorFilter').value && floors[0]) $('spaceFloorFilter').value = String(floors[0].id);
   await loadSpacesList();
+}
+
+function renderUsersList() {
+  const q = ($('userSearch')?.value || '').trim().toLowerCase();
+  const filtered = state.users.filter(u => {
+    if (!q) return true;
+    const fullName = String(u.fullName || '').toLowerCase();
+    const username = String(u.username || '').toLowerCase();
+    return fullName.includes(q) || username.includes(q);
+  });
+
+  $('usersList').innerHTML = filtered.map(u => `<div onclick="selectUserForEdit(${u.id})" style="cursor:pointer;${state.selectedUserEditId===u.id?'background:#15244d;':''}">${u.fullName || u.username} <span class=\"muted\">${u.isAdmin?'': `(${u.username})`}</span> ${u.authProvider?`<span class=\"muted\">sso:${esc(u.authProvider)}</span>`:''} ${u.isBuiltinAdmin?'<span class=\"muted\">built-in</span>':''} ${u.isBuiltinAdmin?'':`<button class=\"danger\" onclick="event.stopPropagation();delUser(${u.id})">delete</button>`}</div>`).join('') || '<div>No users</div>';
 }
 
 function selectUserForEdit(id) {
@@ -840,6 +882,7 @@ async function createSpace() {
   $('floorSelect').addEventListener('change', async ()=>{ state.selectedSpot=null; await refreshFloorData(); render(); });
   ['viewDate','onlyFree'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
   $('bookingSearch').addEventListener('input', () => renderTable());
+  $('userSearch').addEventListener('input', () => renderUsersList());
 
   ['bookingModal','releaseModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
   $('bootstrapModal').onclick = () => {};
@@ -890,6 +933,8 @@ async function createSpace() {
         const me = await api('/api/me');
         state.me = me;
         setAuthUI();
+        await refreshBookings();
+        render();
       } catch { /* ignore */ }
     }
   }).catch(() => {});

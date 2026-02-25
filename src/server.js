@@ -545,29 +545,32 @@ app.delete('/api/spaces/:id', auth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/bookings', (req, res) => {
+app.get('/api/bookings', auth, (req, res) => {
   const floorId = Number(req.query.floorId || 0);
-  let rows;
+  const where = [];
+  const params = [];
+
   if (floorId) {
-    rows = db.prepare(`
-      SELECT b.*, u.full_name as full_name, s.space_number, f.name as floor_name
-      FROM bookings b
-      JOIN users u ON u.id = b.user_id
-      JOIN spaces s ON s.id = b.space_id
-      JOIN floors f ON f.id = b.floor_id
-      WHERE b.floor_id = ?
-      ORDER BY b.start_date
-    `).all(floorId);
-  } else {
-    rows = db.prepare(`
-      SELECT b.*, u.full_name as full_name, s.space_number, f.name as floor_name
-      FROM bookings b
-      JOIN users u ON u.id = b.user_id
-      JOIN spaces s ON s.id = b.space_id
-      JOIN floors f ON f.id = b.floor_id
-      ORDER BY b.start_date
-    `).all();
+    where.push('b.floor_id = ?');
+    params.push(floorId);
   }
+
+  if (!req.auth.isAdmin) {
+    where.push('b.user_id = ?');
+    params.push(req.auth.userId);
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const rows = db.prepare(`
+    SELECT b.*, u.full_name as full_name, s.space_number, f.name as floor_name
+    FROM bookings b
+    JOIN users u ON u.id = b.user_id
+    JOIN spaces s ON s.id = b.space_id
+    JOIN floors f ON f.id = b.floor_id
+    ${whereSql}
+    ORDER BY b.start_date
+  `).all(...params);
+
   res.json(rows);
 });
 
@@ -575,11 +578,29 @@ app.get('/api/availability', (req, res) => {
   const floorId = Number(req.query.floorId);
   const date = String(req.query.date || '');
   if (!floorId || !date) return res.status(400).json({ error: 'floorId/date required' });
+
+  const token = req.headers.authorization?.replace('Bearer ', '').trim();
+  const authCtx = token && sessions.has(token) ? sessions.get(token) : null;
+
   const spaces = db.prepare('SELECT * FROM spaces WHERE floor_id = ? ORDER BY space_number').all(floorId);
   const out = spaces.map(s => {
     const b = bookingForDate(s.id, date);
-    return { ...s, isBooked: !!b, bookingUser: b?.full_name || null, bookingId: b?.id || null, bookingOwnerId: b?.user_id || null, bookingStart: b?.start_date || null, bookingEnd: b?.end_date || null };
+    if (!b) {
+      return { ...s, isBooked: false, bookingUser: null, bookingId: null, bookingOwnerId: null, bookingStart: null, bookingEnd: null };
+    }
+
+    const canSeeBookingDetails = !!authCtx && (authCtx.isAdmin || b.user_id === authCtx.userId);
+    return {
+      ...s,
+      isBooked: true,
+      bookingUser: canSeeBookingDetails ? (b.full_name || null) : null,
+      bookingId: canSeeBookingDetails ? (b.id || null) : null,
+      bookingOwnerId: canSeeBookingDetails ? (b.user_id || null) : null,
+      bookingStart: canSeeBookingDetails ? (b.start_date || null) : null,
+      bookingEnd: canSeeBookingDetails ? (b.end_date || null) : null
+    };
   });
+
   res.json(out);
 });
 
