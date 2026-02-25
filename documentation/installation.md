@@ -85,34 +85,22 @@ Restoring only one of them is not enough.
    - Client ID
    - Client Secret
 
-### Local configuration
-Create `.env` in project root (do not commit):
-
-```env
-MS_TENANT_ID=<tenant-id-or-common>
-MS_CLIENT_ID=<client-id>
-MS_CLIENT_SECRET=<client-secret>
-MS_REDIRECT_URI=http://localhost:3000/api/auth/microsoft/callback
-```
-
-Then run app with env loaded (Linux/macOS):
-
-```bash
-set -a
-source .env
-set +a
-npm start
-```
-
-### Enable in app
+### Configure in app (no `.env` needed)
 1. Login as admin.
-2. Open **Admin Panel → Users**.
-3. Click **Enable Microsoft SSO**.
-4. In Login panel, use **Continue with Microsoft**.
+2. Open **Admin Panel → Settings**.
+3. In **Microsoft SSO** section, set:
+   - Tenant ID
+   - Client ID
+   - Client Secret
+   - Redirect URI (must match Azure app exactly)
+4. Enable **Microsoft SSO** checkbox.
+5. Click **Save SSO settings**.
+6. In Login panel, use **Continue with Microsoft**.
 
 Behavior:
 - Password login remains available.
 - If SSO user is new, user is auto-created in Parking DB.
+- Client secret is stored encrypted in DB.
 
 ## 9) Common troubleshooting
 - `DB key missing while DB exists`:
@@ -121,7 +109,8 @@ Behavior:
   - run with different port: `PORT=3001 npm start`.
 - Native module install issue (`better-sqlite3`):
   - ensure supported Node version and build tools.
-- SSO toggle disabled:
-  - check `.env` values and restart app.
+- SSO cannot be enabled:
+  - check values in **Admin Panel → Settings** (tenant/client/secret/redirect).
+  - ensure Client Secret is set.
 - Microsoft redirect error:
-  - ensure Azure redirect URI exactly matches `MS_REDIRECT_URI`.
+  - ensure Azure redirect URI exactly matches the Redirect URI saved in **Admin Panel → Settings**.
