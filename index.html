@@ -253,7 +253,7 @@
     </div>
   </div>
 
-  <div class="panel" id="bookingsSection" style="margin-top:14px;"><div class="title" id="bookingsTitle">Bookings</div><div class="row" style="max-width:340px; margin-top:8px;"><input id="bookingSearch" placeholder="Search booked by user" /></div><table><thead><tr><th>Floor</th><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
+  <div class="panel" id="bookingsSection" style="margin-top:14px;"><div class="title" id="bookingsTitle">Bookings</div><div class="row" style="max-width:340px; margin-top:8px;"><input id="bookingSearch" placeholder="Search booked by user" /></div><table><thead><tr><th>Floor</th><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th><th>Created</th></tr></thead><tbody id="bookingRows"></tbody></table><div class="actions" id="bookingPager" style="justify-content:space-between; align-items:center;"></div></div>
 </div>
 
 <div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
@@ -373,9 +373,10 @@
 </div></div>
 
 <script>
-const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50 };
+const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50, bookingPage:1, bookingPageSize:25 };
 const $ = id => document.getElementById(id);
 const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString();
+const fmtDateTime = d => d ? new Date(d).toLocaleString() : '-';
 const getViewDate = () => $('viewDate').value;
 const floor = () => Number($('floorSelect').value || 0);
 const esc = (v) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -481,6 +482,7 @@ async function refreshAll() {
 
 async function refreshBookings() {
   state.bookings = state.me ? await api('/api/bookings') : [];
+  state.bookingPage = 1;
 }
 
 async function refreshFloorData() {
@@ -602,9 +604,15 @@ async function openBookingFromList(spaceId, startDate, endDate, floorId) {
 function renderTable() {
   const today = new Date().toISOString().slice(0,10);
   const search = $('bookingSearch').value.trim().toLowerCase();
-  const rows = state.bookings.filter(b => {
+  const bookingStatus = (b) => {
+    if (today < b.start_date) return 'Upcoming';
+    if (today > b.end_date) return 'Completed';
+    return 'Active';
+  };
+
+  const filteredRows = state.bookings.filter(b => {
     if (!search) return true;
-    const st = (b.start_date <= today && today <= b.end_date) ? 'active' : 'booked';
+    const st = bookingStatus(b).toLowerCase();
     const haystack = [
       String(b.floor_name || ''),
       String(b.space_number || ''),
@@ -612,18 +620,56 @@ function renderTable() {
       String(b.username || ''),
       String(b.start_date || ''),
       String(b.end_date || ''),
+      String(b.created_at || ''),
       fmtDate(b.start_date || ''),
       fmtDate(b.end_date || ''),
+      fmtDateTime(b.created_at || ''),
       st
     ].join(' ').toLowerCase();
     return haystack.includes(search);
   });
 
+  const total = filteredRows.length;
+  const pageSize = state.bookingPageSize || 25;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  state.bookingPage = Math.min(Math.max(1, state.bookingPage), totalPages);
+  const start = (state.bookingPage - 1) * pageSize;
+  const rows = filteredRows.slice(start, start + pageSize);
+
   $('bookingRows').innerHTML = rows.map(b => {
-    const st = (b.start_date <= today && today <= b.end_date) ? 'Active' : 'Booked';
+    const st = bookingStatus(b);
     const clickable = !!state.me;
-    return `<tr ${clickable ? `onclick="openBookingFromList(${b.space_id}, '${b.start_date}', '${b.end_date}', ${b.floor_id})" style="cursor:pointer;"` : ''}><td>${esc(b.floor_name || '-')}</td><td>${esc(b.space_number)}</td><td>${esc(b.full_name || b.username)}</td><td>${esc(fmtDate(b.start_date))}</td><td>${esc(fmtDate(b.end_date))}</td><td>${esc(st)}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="muted">No bookings</td></tr>';
+    return `<tr ${clickable ? `onclick="openBookingFromList(${b.space_id}, '${b.start_date}', '${b.end_date}', ${b.floor_id})" style="cursor:pointer;"` : ''}><td>${esc(b.floor_name || '-')}</td><td>${esc(b.space_number)}</td><td>${esc(b.full_name || b.username)}</td><td>${esc(fmtDate(b.start_date))}</td><td>${esc(fmtDate(b.end_date))}</td><td>${esc(st)}</td><td>${esc(fmtDateTime(b.created_at))}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="muted">No bookings</td></tr>';
+
+  const pager = $('bookingPager');
+  if (!pager) return;
+  if (!total) {
+    pager.innerHTML = '';
+    return;
+  }
+
+  pager.innerHTML = `
+    <span class="muted">Showing ${start + 1}-${Math.min(start + pageSize, total)} of ${total}</span>
+    <div style="display:flex; gap:8px;">
+      <button id="bookingPrevPage" ${state.bookingPage <= 1 ? 'disabled' : ''}>Previous</button>
+      <button id="bookingNextPage" ${state.bookingPage >= totalPages ? 'disabled' : ''}>Next</button>
+    </div>
+  `;
+
+  $('bookingPrevPage')?.addEventListener('click', () => {
+    if (state.bookingPage > 1) {
+      state.bookingPage -= 1;
+      renderTable();
+    }
+  });
+
+  $('bookingNextPage')?.addEventListener('click', () => {
+    if (state.bookingPage < totalPages) {
+      state.bookingPage += 1;
+      renderTable();
+    }
+  });
 }
 
 function render() {
@@ -1122,7 +1168,7 @@ async function createSpace() {
   $('clearFilters').onclick = ()=>{ $('onlyFree').checked=false; const d2=new Date(); d2.setMinutes(d2.getMinutes()-d2.getTimezoneOffset()); $('viewDate').value=d2.toISOString().slice(0,10); if(state.token) refreshFloorData().then(render); else render(); };
   $('floorSelect').addEventListener('change', async ()=>{ state.selectedSpot=null; await refreshFloorData(); render(); });
   ['viewDate','onlyFree'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
-  $('bookingSearch').addEventListener('input', () => renderTable());
+  $('bookingSearch').addEventListener('input', () => { state.bookingPage = 1; renderTable(); });
   $('userSearch').addEventListener('input', () => renderUsersList());
 
   ['bookingModal','releaseModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
