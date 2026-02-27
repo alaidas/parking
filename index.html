@@ -115,11 +115,12 @@
       margin-top: 12px;
       border: 1px solid var(--line);
       border-radius: 12px;
-      overflow: hidden;
+      overflow: auto;
       background: #f4fbff;
+      -webkit-overflow-scrolling: touch;
     }
 
-    svg { width: 100%; display: block; }
+    svg { width: 100%; min-width: 980px; display: block; }
 
     .lot-title { fill: #163451; font-size: 46px; letter-spacing: 2px; font-weight: 400; }
     .spot-rect { fill: rgba(15,91,142,.08); stroke: #b6cfde; stroke-width: 2; rx: 6; }
@@ -186,6 +187,35 @@
     @media (max-width:1040px) {
       .layout { grid-template-columns: 1fr; }
       .grid2 { grid-template-columns: 1fr; }
+      .header { align-items: flex-start; }
+      .header-actions { flex-wrap: wrap; }
+    }
+
+    @media (max-width:768px) {
+      .app { margin: 14px auto; padding: 0 10px; }
+      .header { padding: 14px; border-radius: 14px; }
+      .title { font-size: 16px; }
+      .panel { padding: 12px; }
+      .toolbar { padding: 10px; gap: 8px; }
+      .toolbar select,
+      .toolbar button,
+      .toolbar input,
+      .toolbar label { width: 100%; }
+      .header-actions button { flex: 1 1 calc(50% - 6px); }
+      .pill { width: 100%; text-align: center; }
+
+      .map-wrap { border-radius: 10px; }
+      svg { min-width: 840px; }
+      .lot-title { font-size: 36px; }
+      .spot-label { font-size: 16px; }
+
+      .actions button { width: 100%; }
+
+      table { font-size: 12px; display: block; overflow-x: auto; white-space: nowrap; }
+      th, td { padding: 8px; }
+
+      .modal { padding: 12px; }
+      .row { margin-bottom: 8px; }
     }
   </style>
 </head>
