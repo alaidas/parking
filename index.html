@@ -688,6 +688,10 @@ function renderTable() {
       st
     ].join(' ').toLowerCase();
     return haystack.includes(search);
+  }).sort((a, b) => {
+    const ta = new Date(a.created_at || 0).getTime();
+    const tb = new Date(b.created_at || 0).getTime();
+    return tb - ta;
   });
 
   const total = filteredRows.length;
