@@ -5,31 +5,188 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Parking Booking Dashboard</title>
   <style>
-    :root { --bg:#0a0f1f; --panel:#101933; --border:#26365f; --text:#e7ecff; --muted:#94a5cf; --accent:#64d9ff; --accent2:#7f82ff; --line:#e9f4ff; }
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui;color:var(--text);background:radial-gradient(1000px 500px at 18% -12%, #1a2b61 0%, var(--bg) 55%), var(--bg)}
-    .app{max-width:1320px;margin:22px auto;padding:0 16px}.header,.panel{background:linear-gradient(180deg,#142145 0%,var(--panel) 100%);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-    .header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-    .title{font-weight:700}.muted{color:var(--muted);font-size:13px}.toolbar{margin-bottom:14px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    input,select,button{background:#0f1833;border:1px solid #2b3a63;color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px} button{cursor:pointer}
-    .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#041027;font-weight:700}
-    .layout{display:grid;grid-template-columns:2.1fr 1fr;gap:14px}.panel{padding:14px}
-    .map-wrap{margin-top:12px;border:1px solid #30406a;border-radius:12px;overflow:hidden;background:#111742} svg{width:100%;display:block}
-    .lot-title{fill:#eef6ff;font-size:46px;letter-spacing:2px;font-weight:300}.spot-rect{fill:rgba(5,10,70,.58);stroke:var(--line);stroke-width:2;rx:6}
-    .spot-label{fill:#d8e8ff;font-size:18px;font-weight:700;pointer-events:none}.spot-group{cursor:pointer}.spot-group.free .spot-rect{fill:rgba(45,209,125,.14);stroke:rgba(124,255,189,.95)}
-    .spot-group.booked .spot-rect{fill:rgba(255,100,128,.14);stroke:rgba(255,155,176,.95)}.spot-group.soon .spot-rect{fill:rgba(241,186,81,.14);stroke:rgba(255,221,150,.95)}.spot-group.selected .spot-rect{stroke:var(--accent);stroke-width:3}
-    .chips{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.chip{font-size:12px;padding:5px 8px;border-radius:999px;border:1px solid #31426f;color:var(--muted)}
-    .kv{margin-top:10px;display:grid;gap:8px;font-size:14px}.map-mini{margin-top:10px;border:1px solid #2b3c66;border-radius:10px;overflow:hidden;display:none}
-    .map-mini-view{height:340px;background-size:260%;background-repeat:no-repeat;background-position:center;cursor:grab;touch-action:none}.map-mini-view.dragging{cursor:grabbing}
-    .map-mini-caption{font-size:12px;color:var(--muted);padding:6px 8px;border-top:1px solid #2b3c66;background:#0f1833}
-    .actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap} table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px} th,td{padding:10px;border-bottom:1px solid #22335f;text-align:left}
-    .overlay{position:fixed;inset:0;background:rgba(5,8,18,.7);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
-    .modal{width:100%;max-width:740px;background:#121b35;border:1px solid #30406b;border-radius:14px;padding:16px}.row{display:grid;gap:8px;margin-bottom:10px}.header-actions{display:flex;align-items:center;gap:8px}
-    .pill{font-size:12px;color:#cfe0ff;border:1px solid #31426f;border-radius:999px;padding:6px 10px;background:#0f1833;white-space:nowrap}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.admin-block{border:1px solid #2b3a63;border-radius:10px;padding:10px;margin-top:10px}
-    .list{max-height:220px;overflow:auto;border:1px solid #2b3a63;border-radius:8px;margin-top:8px}.list div{padding:8px;border-bottom:1px solid #24365d}.list div:last-child{border-bottom:0}
-    .danger{border-color:#7d2b44;color:#ffb6c8}
-    .admin-tab-btn.active{outline:2px solid #7f82ff}
-    @media (max-width:1040px){.layout{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+    :root {
+      --bg: #eef3f7;
+      --panel: #ffffff;
+      --panel-soft: #f7fafc;
+      --border: #dbe4eb;
+      --text: #0b1f33;
+      --muted: #5a6f82;
+      --accent: #00a6b6;
+      --accent-2: #0c5c8e;
+      --line: #d7e5ee;
+      --success: #2ea66f;
+      --warn: #d89a31;
+      --danger: #d46277;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(980px 380px at 12% -12%, rgba(0,166,182,.16), transparent 62%),
+        radial-gradient(920px 360px at 95% -15%, rgba(12,92,142,.15), transparent 60%),
+        var(--bg);
+    }
+
+    .app { max-width: 1320px; margin: 28px auto; padding: 0 20px; }
+
+    .header, .panel {
+      background: linear-gradient(180deg, #ffffff 0%, var(--panel-soft) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 34px rgba(14,33,53,.08);
+    }
+
+    .header {
+      padding: 18px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      opacity: .85;
+    }
+
+    .title { font-weight: 700; letter-spacing: .2px; font-size: 18px; }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    .toolbar {
+      margin-bottom: 16px;
+      padding: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      background: #fff;
+    }
+
+    input, select, button {
+      background: #fff;
+      border: 1px solid #cfdde6;
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 13px;
+      font-size: 14px;
+      transition: border-color .2s ease, box-shadow .2s ease, transform .05s ease;
+    }
+
+    input:focus, select:focus, button:focus {
+      outline: none;
+      border-color: #88bfcc;
+      box-shadow: 0 0 0 3px rgba(0,166,182,.12);
+    }
+
+    button { cursor: pointer; }
+    button:hover { border-color: #9dc7d4; }
+    button:active { transform: translateY(1px); }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border: none;
+      color: #ffffff;
+      font-weight: 700;
+      letter-spacing: .2px;
+      box-shadow: 0 10px 20px rgba(12,92,142,.24);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.03);
+      box-shadow: 0 12px 24px rgba(12,92,142,.28);
+    }
+
+    .layout { display: grid; grid-template-columns: 2.1fr 1fr; gap: 16px; }
+    .panel { padding: 16px; }
+
+    .map-wrap {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f4fbff;
+    }
+
+    svg { width: 100%; display: block; }
+
+    .lot-title { fill: #163451; font-size: 46px; letter-spacing: 2px; font-weight: 400; }
+    .spot-rect { fill: rgba(15,91,142,.08); stroke: #b6cfde; stroke-width: 2; rx: 6; }
+    .spot-label { fill: #1a3550; font-size: 18px; font-weight: 700; pointer-events: none; }
+    .spot-group { cursor: pointer; }
+    .spot-group.free .spot-rect { fill: rgba(46,166,111,.11); stroke: rgba(46,166,111,.9); }
+    .spot-group.booked .spot-rect { fill: rgba(212,98,119,.12); stroke: rgba(212,98,119,.85); }
+    .spot-group.soon .spot-rect { fill: rgba(216,154,49,.13); stroke: rgba(216,154,49,.9); }
+    .spot-group.selected .spot-rect { stroke: var(--accent); stroke-width: 3; }
+
+    .chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .chip {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #d2e2ea;
+      color: #365369;
+      background: #f9fdff;
+      font-weight: 600;
+    }
+
+    .kv { margin-top: 10px; display: grid; gap: 8px; font-size: 14px; }
+    .map-mini {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+      background: #fff;
+    }
+    .map-mini-view { height: 340px; background-size: 260%; background-repeat: no-repeat; background-position: center; cursor: grab; touch-action: none; }
+    .map-mini-view.dragging { cursor: grabbing; }
+    .map-mini-caption { font-size: 12px; color: var(--muted); padding: 6px 8px; border-top: 1px solid var(--line); background: #f8fbfd; }
+
+    .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 10px; border-bottom: 1px solid #e1ebf1; text-align: left; }
+    th { color: #27455f; font-weight: 700; background: #f7fafc; }
+
+    .overlay { position: fixed; inset: 0; background: rgba(5,16,29,.42); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+    .modal { width: 100%; max-width: 740px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 16px 44px rgba(11,31,51,.2); }
+    .row { display: grid; gap: 8px; margin-bottom: 10px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+
+    .pill {
+      font-size: 12px;
+      color: #2e4d63;
+      border: 1px solid #cbe0ea;
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: #f6fbfe;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .admin-block { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-top: 10px; background: #fff; }
+    .list { max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; }
+    .list div { padding: 8px; border-bottom: 1px solid #e2ebf1; }
+    .list div:last-child { border-bottom: 0; }
+    .danger { border-color: #d5909d; color: #a03f52; }
+    .admin-tab-btn.active { outline: 2px solid #6cbec8; }
+
+    @media (max-width:1040px) {
+      .layout { grid-template-columns: 1fr; }
+      .grid2 { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -55,7 +212,7 @@
   <div class="layout">
     <div class="panel">
       <div class="title">Floor Plan</div><div class="muted">Click a parking slot directly on the map.</div>
-      <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#0f1370"/><line x1="0" y1="130" x2="1240" y2="130" stroke="var(--line)" stroke-width="2" opacity=".7"/><text x="1215" y="75" class="lot-title" text-anchor="end">PARKING</text><text x="1215" y="120" class="lot-title" text-anchor="end" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="var(--line)" stroke-width="2" opacity=".7"/></svg></div>
+      <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#f5f9fc"/><line x1="0" y1="130" x2="1240" y2="130" stroke="#cfe0ea" stroke-width="2" opacity="1"/><text x="1215" y="75" class="lot-title" text-anchor="end">PARKING</text><text x="1215" y="120" class="lot-title" text-anchor="end" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="#cfe0ea" stroke-width="2" opacity="1"/></svg></div>
       <div class="chips"><span class="chip">🟢 Free</span><span class="chip">🔴 Booked</span><span class="chip">🟡 Ending soon</span></div>
     </div>
     <div class="panel">
