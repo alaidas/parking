@@ -108,19 +108,20 @@
       box-shadow: 0 12px 24px rgba(12,92,142,.28);
     }
 
-    .layout { display: grid; grid-template-columns: 2.1fr 1fr; gap: 16px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 70%) minmax(0, 30%); gap: 16px; }
+    .layout > .panel { min-width: 0; }
     .panel { padding: 16px; }
 
     .map-wrap {
       margin-top: 12px;
       border: 1px solid var(--line);
       border-radius: 12px;
-      overflow: auto;
+      overflow: hidden;
       background: #f4fbff;
       -webkit-overflow-scrolling: touch;
     }
 
-    svg { width: 100%; min-width: 980px; display: block; }
+    svg { width: 100%; min-width: 0; display: block; }
 
     .lot-title { fill: #163451; font-size: 46px; letter-spacing: 2px; font-weight: 400; }
     .spot-rect { fill: rgba(15,91,142,.08); stroke: #b6cfde; stroke-width: 2; rx: 6; }
@@ -204,7 +205,7 @@
       .header-actions button { flex: 1 1 calc(50% - 6px); }
       .pill { width: 100%; text-align: center; }
 
-      .map-wrap { border-radius: 10px; }
+      .map-wrap { border-radius: 10px; overflow: auto; }
       svg { min-width: 840px; }
       .lot-title { font-size: 36px; }
       .spot-label { font-size: 16px; }
@@ -241,7 +242,6 @@
 
   <div class="layout">
     <div class="panel">
-      <div class="title">Floor Plan</div><div class="muted">Click a parking slot directly on the map.</div>
       <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#f5f9fc"/><line x1="0" y1="130" x2="1240" y2="130" stroke="#cfe0ea" stroke-width="2" opacity="1"/><text x="1215" y="75" class="lot-title" text-anchor="end">PARKING</text><text x="1215" y="120" class="lot-title" text-anchor="end" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="#cfe0ea" stroke-width="2" opacity="1"/></svg></div>
       <div class="chips"><span class="chip">🟢 Free</span><span class="chip">🔴 Booked</span><span class="chip">🟡 Ending soon</span></div>
     </div>
@@ -523,19 +523,80 @@ function renderMap() {
     return sa.raw.localeCompare(sb.raw);
   });
 
-  const layoutAt = (i) => {
-    if (i < 13) return { x: 18 + i * 93, y: 160, w: 70, h: 170 };
-    if (i < 20) return { x: 550 + (i - 13) * 88, y: 485, w: 66, h: 165 };
-    const j = i - 20;
-    const col = j % 10;
-    const row = Math.floor(j / 10);
-    return { x: 18 + col * 93, y: 160 + row * 210, w: 70, h: 170 };
+  const buildDynamicLayouts = (items) => {
+    const svgW = 1240;
+    const gapX = 12;
+    const gapY = 14;
+    const topBand = { start: 160, end: 438 };
+    const bottomBand = { start: 485, end: 690 };
+
+    const count = items.length;
+    if (!count) return {};
+
+    // Keep visual balance: prefer 1 row (small sets), then 2 rows (top+bottom),
+    // then grow in pairs (2 rows per band) only when really needed.
+    let rowsNeeded = 1;
+    if (count > 13) rowsNeeded = 2;
+    if (count > 36) rowsNeeded = 4;
+
+    const rowsTop = Math.ceil(rowsNeeded / 2);
+    const rowsBottom = Math.floor(rowsNeeded / 2);
+
+    const colsPerRow = Math.ceil(count / rowsNeeded);
+
+    const topHeight = topBand.end - topBand.start;
+    const bottomHeight = bottomBand.end - bottomBand.start;
+    const hTop = (topHeight - gapY * Math.max(0, rowsTop - 1)) / rowsTop;
+    const hBottom = rowsBottom > 0 ? (bottomHeight - gapY * Math.max(0, rowsBottom - 1)) / rowsBottom : hTop;
+
+    let slotH = Math.min(170, hTop, hBottom);
+    let slotW = Math.min(70, slotH * 0.42, (svgW - 36 - gapX * Math.max(0, colsPerRow - 1)) / colsPerRow);
+
+    slotH = Math.max(92, slotH);
+    slotW = Math.max(38, slotW);
+
+    const rows = [];
+    for (let i = 0; i < rowsTop; i++) rows.push({ inTop: true, idxInBand: i, count: 0 });
+    for (let i = 0; i < rowsBottom; i++) rows.push({ inTop: false, idxInBand: i, count: 0 });
+
+    // Even distribution to avoid one short "orphan" row in the middle.
+    const base = Math.floor(count / rows.length);
+    let rem = count % rows.length;
+    rows.forEach((r) => {
+      r.count = base + (rem > 0 ? 1 : 0);
+      if (rem > 0) rem--;
+    });
+
+    const layouts = {};
+    let itemIdx = 0;
+
+    const bandOffset = (bandHeight, rowsInBand) => {
+      const used = rowsInBand * slotH + Math.max(0, rowsInBand - 1) * gapY;
+      return Math.max(0, (bandHeight - used) / 2);
+    };
+
+    const topOffset = bandOffset(topHeight, rowsTop);
+    const bottomOffset = rowsBottom > 0 ? bandOffset(bottomHeight, rowsBottom) : 0;
+
+    rows.forEach((row) => {
+      const band = row.inTop ? topBand : bottomBand;
+      const yOffset = row.inTop ? topOffset : bottomOffset;
+      const y = band.start + yOffset + row.idxInBand * (slotH + gapY);
+
+      const rowWidth = row.count * slotW + Math.max(0, row.count - 1) * gapX;
+      const startX = (svgW - rowWidth) / 2;
+
+      for (let c = 0; c < row.count; c++) {
+        const s = items[itemIdx++];
+        if (!s) break;
+        layouts[s.id] = { x: startX + c * (slotW + gapX), y, w: slotW, h: slotH };
+      }
+    });
+
+    return layouts;
   };
 
-  state.displayLayouts = {};
-  orderedSpaces.forEach((s, idx) => {
-    state.displayLayouts[s.id] = layoutAt(idx);
-  });
+  state.displayLayouts = buildDynamicLayouts(orderedSpaces);
 
   for (const s of orderedSpaces) {
     if (onlyFree && s.isBooked) continue;
@@ -545,7 +606,7 @@ function renderMap() {
     const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     rect.setAttribute('class','spot-rect'); rect.setAttribute('x', d.x); rect.setAttribute('y', d.y); rect.setAttribute('width', d.w); rect.setAttribute('height', d.h);
     const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('class','spot-label'); txt.setAttribute('x', d.x + d.w / 2); txt.setAttribute('y', d.y + d.h / 2); txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle'); txt.textContent=s.space_number;
+    txt.setAttribute('class','spot-label'); txt.setAttribute('x', d.x + d.w / 2); txt.setAttribute('y', d.y + d.h / 2); txt.setAttribute('text-anchor','middle'); txt.setAttribute('dominant-baseline','middle'); txt.setAttribute('font-size', String(Math.max(12, Math.min(22, d.w * 0.32)))); txt.textContent=s.space_number;
     const isOwnBooking = Number(s.bookingOwnerId) === Number(state.me?.userId);
     const blockedForViewer = !!s.isBooked && (!state.me || (!state.me?.isAdmin && !isOwnBooking));
     g.append(rect,txt);
