@@ -263,6 +263,7 @@ function issueToken(user) {
     username: user.username,
     fullName: user.full_name,
     isAdmin: !!user.is_admin,
+    isBuiltinAdmin: !!user.is_builtin_admin,
     authProvider: user.auth_provider || null
   });
   return t;
@@ -449,7 +450,7 @@ app.post('/api/login', (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE username = ?').get(userId);
   if (!u || !bcrypt.compareSync(password || '', u.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
   const token = issueToken(u);
-  res.json({ token, user: { id: u.id, username: u.username, fullName: u.full_name, isAdmin: !!u.is_admin, authProvider: u.auth_provider || null } });
+  res.json({ token, user: { id: u.id, username: u.username, fullName: u.full_name, isAdmin: !!u.is_admin, isBuiltinAdmin: !!u.is_builtin_admin, authProvider: u.auth_provider || null } });
 });
 
 app.get('/api/me', auth, (req, res) => res.json(req.auth));

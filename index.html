@@ -179,15 +179,37 @@
 
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .admin-block { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-top: 10px; background: #fff; }
-    .list { max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; }
-    .list div { padding: 8px; border-bottom: 1px solid #e2ebf1; }
+    .users-admin-grid { display:grid; grid-template-columns: 1.1fr .9fr; gap: 12px; margin-top: 8px; }
+    .users-left-col, .users-right-col { min-width: 0; }
+    .users-right-col { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: #fbfdff; }
+    .list { max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 8px; }
+    .list div {
+      padding: 8px;
+      border-bottom: 1px solid #e2ebf1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
     .list div:last-child { border-bottom: 0; }
+    .list .item-label {
+      min-width: 0;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .list .item-del {
+      margin-left: auto;
+      flex-shrink: 0;
+    }
     .danger { border-color: #d5909d; color: #a03f52; }
     .admin-tab-btn.active { outline: 2px solid #6cbec8; }
 
     @media (max-width:1040px) {
       .layout { grid-template-columns: 1fr; }
       .grid2 { grid-template-columns: 1fr; }
+      .users-admin-grid { grid-template-columns: 1fr; }
       .header { align-items: flex-start; }
       .header-actions { flex-wrap: wrap; }
     }
@@ -248,7 +270,7 @@
     <div class="panel">
       <div class="title">Space Details</div><div class="muted" id="spotHint">Select a spot from the map</div>
       <div class="kv" id="details"></div>
-      <div class="map-mini" id="mapMini"><div class="map-mini-view" id="mapMiniView"></div><div class="map-mini-caption" id="mapMiniCaption"></div></div>
+      <div class="map-mini" id="mapMini"><div class="map-mini-view" id="mapMiniView"></div><div class="map-mini-caption" id="mapMiniCaption"></div><div class="actions" style="margin:8px; margin-top:6px;"><button id="mapMiniZoomOut" type="button">−</button><button id="mapMiniZoomIn" type="button">+</button></div></div>
       <div class="actions" id="actions"></div>
     </div>
   </div>
@@ -258,9 +280,9 @@
 
 <div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
 
-<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="muted" id="ssoHint" style="display:none; margin-bottom:8px;">Microsoft SSO is available. You can use either SSO or user/password.</div><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button id="loginMicrosoft" style="display:none">Continue with Microsoft</button><button id="loginClose">Close</button></div></div></div>
+<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button class="btn-primary" id="loginMicrosoft" style="display:none">Continue with Microsoft</button><button id="loginClose">Close</button></div></div></div>
 
-<div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
+<div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div><div class="row"><label class="muted">Repeat new password</label><input id="newPasswordRepeat" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
 
 <div class="overlay" id="bookingModal"><div class="modal" style="max-width:500px"><h3>Book spot <span id="modalSpot"></span></h3><div class="row"><label class="muted">Booked by user</label><select id="bookUser"></select></div><div class="row"><label class="muted">Start date</label><input id="startAt" type="date"/></div><div class="row" id="endAtRow" style="display:none"><label class="muted">End date</label><input id="endAt" type="date"/></div><div class="row" id="durationRow"><label class="muted">Period</label><select id="durationDays"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option></select></div><div class="actions"><button class="btn-primary" id="saveBooking">Confirm booking</button><button id="cancelBooking">Cancel</button></div></div></div>
 
@@ -278,59 +300,86 @@
 
   <div class="admin-tab-pane" id="tab-users">
     <div class="admin-block"><b>Users</b>
-      <div class="row" style="max-width:340px; margin:8px 0;"><input id="userSearch" placeholder="Filter by full name or username" /></div>
-      <div id="userEditor" style="display:none; margin-bottom:10px;">
-        <div class="row">
-          <input id="newUsername" placeholder="user id"/>
-          <input id="newFullName" placeholder="full name"/>
-          <input id="newUserPassword" placeholder="password (required for new user)" type="password"/>
-          <label class="muted"><input id="newUserAdmin" type="checkbox"/> admin</label>
-          <button class="btn-primary" id="createUserBtn">Save user</button>
-          <button id="resetUserPwBtn" style="display:none">Reset password</button>
-          <button id="cancelUserEdit">Cancel</button>
+      <div class="users-admin-grid">
+        <div class="users-left-col">
+          <div class="row" style="max-width:340px; margin:0 0 8px;"><input id="userSearch" placeholder="Filter by full name or username" /></div>
+          <div class="list" id="usersList"></div>
+          <div class="actions"><button id="createNewUserBtn" class="btn-primary">Create new</button></div>
+        </div>
+
+        <div class="users-right-col">
+          <div class="muted" style="margin-bottom:8px;">Selected user</div>
+          <div id="userEditor" style="display:none; margin:0;">
+            <div id="userSourceHint" class="muted" style="display:none; margin-bottom:6px;">Loaded from Microsoft account</div>
+            <div class="row">
+              <input id="newUsername" placeholder="user id"/>
+              <input id="newFullName" placeholder="full name"/>
+              <input id="newUserPassword" placeholder="password (required for new user)" type="password"/>
+              <label class="muted"><input id="newUserAdmin" type="checkbox"/> admin</label>
+              <button class="btn-primary" id="createUserBtn">Save user</button>
+              <button id="resetUserPwBtn" style="display:none">Reset password</button>
+              <button id="deleteUserBtn" class="danger" style="display:none">Delete</button>
+              <button id="cancelUserEdit">Cancel</button>
+            </div>
+          </div>
+          <div id="userEditorEmpty" class="muted">Select a user from the list, or click "Create new".</div>
         </div>
       </div>
-      <div class="list" id="usersList"></div>
-      <div class="actions"><button id="createNewUserBtn" class="btn-primary">Create new</button></div>
     </div>
   </div>
 
   <div class="admin-tab-pane" id="tab-floors" style="display:none">
     <div class="admin-block"><b>Floors</b>
-      <div id="floorEditor" style="display:none; margin-bottom:10px;">
-        <div class="row"><input id="floorName" placeholder="floor name"/><input id="floorImageFile" type="file" accept="image/png,image/jpeg,image/webp"/><button class="btn-primary" id="createFloorBtn">Save floor</button><button id="cancelFloorEdit">Cancel</button></div>
-        <div id="floorImagePreviewWrap" style="display:none; margin-top:8px;">
-          <div class="muted" style="margin-bottom:6px;">Floor image preview</div>
-          <div class="map-mini" style="display:block;">
-            <div id="floorImagePreview" class="map-mini-view" style="height:340px; background-size:cover; background-position:center;"></div>
+      <div class="users-admin-grid">
+        <div class="users-left-col">
+          <div class="list" id="floorsList"></div>
+          <div class="actions"><button id="createNewFloorBtn" class="btn-primary">Create new</button></div>
+        </div>
+
+        <div class="users-right-col">
+          <div class="muted" style="margin-bottom:8px;">Selected floor</div>
+          <div id="floorEditor" style="display:none; margin-bottom:10px;">
+            <div class="row"><input id="floorName" placeholder="floor name"/><input id="floorImageFile" type="file" accept="image/png,image/jpeg,image/webp"/><button class="btn-primary" id="createFloorBtn">Save floor</button><button id="deleteFloorBtn" class="danger" style="display:none">Delete</button><button id="cancelFloorEdit">Cancel</button></div>
+            <div id="floorImagePreviewWrap" style="display:none; margin-top:8px;">
+              <div class="muted" style="margin-bottom:6px;">Floor image preview</div>
+              <div class="map-mini" style="display:block;">
+                <div id="floorImagePreview" class="map-mini-view" style="height:340px; background-size:cover; background-position:center;"></div>
+              </div>
+            </div>
           </div>
+          <div id="floorEditorEmpty" class="muted">Select a floor from the list, or click "Create new".</div>
         </div>
       </div>
-      <div class="list" id="floorsList"></div>
-      <div class="actions"><button id="createNewFloorBtn" class="btn-primary">Create new</button></div>
     </div>
   </div>
 
   <div class="admin-tab-pane" id="tab-spaces" style="display:none">
     <div class="admin-block"><b>Spaces</b>
-      <div class="row" style="max-width:320px; margin-bottom:10px;">
-        <label class="muted">Floor</label>
-        <select id="spaceFloorFilter"></select>
-      </div>
-
-      <div id="spaceEditor" style="display:none; margin-bottom:10px;">
-        <div class="row" style="max-width:420px;">
-          <input id="spaceNumber" placeholder="space number"/>
-          <div class="actions"><button class="btn-primary" id="createSpaceBtn">Save space</button><button id="cancelSpaceEdit">Cancel</button></div>
+      <div class="users-admin-grid">
+        <div class="users-left-col">
+          <div class="row" style="max-width:320px; margin-bottom:10px;">
+            <label class="muted">Floor</label>
+            <select id="spaceFloorFilter"></select>
+          </div>
+          <div class="list" id="spacesList"></div>
+          <div class="actions"><button id="createNewSpaceBtn" class="btn-primary">Create new</button></div>
         </div>
-        <div class="muted" style="margin:6px 0;">Space map position (drag to set default mini view)</div>
-        <div class="map-mini" style="display:block;">
-          <div id="spaceMapEditor" class="map-mini-view" style="height:340px;"></div>
+
+        <div class="users-right-col">
+          <div class="muted" style="margin-bottom:8px;">Selected space</div>
+          <div id="spaceEditor" style="display:none; margin-bottom:10px;">
+            <div class="row" style="max-width:420px;">
+              <input id="spaceNumber" placeholder="space number"/>
+              <div class="actions"><button class="btn-primary" id="createSpaceBtn">Save space</button><button id="deleteSpaceBtn" class="danger" style="display:none">Delete</button><button id="cancelSpaceEdit">Cancel</button></div>
+            </div>
+            <div class="muted" style="margin:6px 0;">Space map position (drag to set default mini view)</div>
+            <div class="map-mini" style="display:block;">
+              <div id="spaceMapEditor" class="map-mini-view" style="height:340px;"></div>
+            </div>
+          </div>
+          <div id="spaceEditorEmpty" class="muted">Select a space from the list, or click "Create new".</div>
         </div>
       </div>
-
-      <div class="list" id="spacesList"></div>
-      <div class="actions"><button id="createNewSpaceBtn" class="btn-primary">Create new</button></div>
     </div>
   </div>
 
@@ -373,7 +422,7 @@
 </div></div>
 
 <script>
-const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, panX:0, panY:0, baseX:50, baseY:50, bookingPage:1, bookingPageSize:25 };
+const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, miniZoom:260, panX:0, panY:0, baseX:50, baseY:50, bookingPage:1, bookingPageSize:25 };
 const $ = id => document.getElementById(id);
 const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString();
 const fmtDateTime = d => d ? new Date(d).toLocaleString() : '-';
@@ -450,7 +499,6 @@ function setAuthUI() {
   $('openChangePasswordPanel').style.display = (state.me && !state.me.authProvider) ? 'inline-block' : 'none';
   $('logoutBtn').style.display = state.me ? 'inline-block' : 'none';
   $('loginMicrosoft').style.display = state.ssoEnabled ? 'inline-block' : 'none';
-  $('ssoHint').style.display = state.ssoEnabled ? 'block' : 'none';
 
   const bookingsTitle = $('bookingsTitle');
   if (bookingsTitle) {
@@ -503,9 +551,13 @@ function spotAt() { return state.availability.find(s => s.id === state.selectedS
 
 function statusClass(s) {
   if (!s?.isBooked) return 'free';
+  // For guests or users without permission, booking end may be hidden.
+  // In that case keep generic booked state instead of incorrectly showing "ending soon".
+  if (!s.bookingEnd) return 'booked';
   const view = new Date(`${getViewDate()}T12:00:00`).getTime();
-  const end = s.bookingEnd ? new Date(`${s.bookingEnd}T00:00:00`).getTime() : 0;
-  return (end - view) / 3600000 <= 12 ? 'soon' : 'booked';
+  const end = new Date(`${s.bookingEnd}T23:59:59`).getTime();
+  const hoursLeft = (end - view) / 3600000;
+  return (hoursLeft >= 0 && hoursLeft <= 24) ? 'soon' : 'booked';
 }
 
 function renderMap() {
@@ -634,7 +686,8 @@ function renderDetails() {
   state.baseX = s.map_x ?? (((d.x) + (d.w)/2)/1240)*100;
   state.baseY = s.map_y ?? (((d.y) + (d.h)/2)/720)*100;
   state.panX = 0; state.panY = 0;
-  updateMiniPos(s.map_zoom ?? 260);
+  state.miniZoom = s.map_zoom ?? 260;
+  updateMiniPos();
   $('mapMini').style.display='block'; $('mapMiniCaption').textContent = `Location on ${f?.name || 'floor'} (drag to explore)`;
 
   if (state.me && !s.isBooked) {
@@ -647,17 +700,14 @@ function renderDetails() {
 
 async function openBookingFromList(spaceId, startDate, endDate, floorId) {
   if (!state.me) return;
-  const at = getViewDate();
 
   if (Number(floorId) && Number($('floorSelect').value) !== Number(floorId)) {
     $('floorSelect').value = String(floorId);
     await refreshFloorData();
   }
 
-  if (!(startDate <= at && at <= endDate)) {
-    $('viewDate').value = startDate;
-    await refreshFloorData();
-  }
+  // Keep current view date unchanged to avoid confusing historical color states
+  // when clicking completed/old bookings in the list.
   state.selectedSpot = Number(spaceId);
   render();
 }
@@ -747,12 +797,13 @@ function render() {
   renderMap(); renderDetails(); renderTable();
 }
 
-function updateMiniPos(zoom=260) {
+function updateMiniPos(zoom=state.miniZoom || 260) {
   const map = $('mapMiniView');
   const x = Math.max(0,Math.min(100,state.baseX + state.panX));
   const y = Math.max(0,Math.min(100,state.baseY + state.panY));
+  state.miniZoom = Math.max(100, Math.min(500, zoom));
   map.style.backgroundPosition = `${x}% ${y}%`;
-  map.style.backgroundSize = `${zoom}%`;
+  map.style.backgroundSize = `${state.miniZoom}%`;
 }
 
 async function openBookingModal() {
@@ -829,12 +880,15 @@ async function releaseBooking() {
 async function changePassword() {
   const oldPassword = $('oldPassword').value;
   const newPassword = $('newPassword').value;
-  if (!oldPassword || !newPassword) return uiAlert('Please fill both password fields');
+  const newPasswordRepeat = $('newPasswordRepeat').value;
+  if (!oldPassword || !newPassword || !newPasswordRepeat) return uiAlert('Please fill all password fields');
   if (newPassword.length < 4) return uiAlert('New password must be at least 4 characters');
+  if (newPassword !== newPasswordRepeat) return uiAlert('New passwords do not match');
   try {
     await api('/api/me/change-password', { method:'POST', body: JSON.stringify({ oldPassword, newPassword }) });
     $('oldPassword').value = '';
     $('newPassword').value = '';
+    $('newPasswordRepeat').value = '';
     $('changePasswordModal').style.display = 'none';
     await uiAlert('Password changed successfully', 'Success');
   } catch (e) {
@@ -882,16 +936,20 @@ async function createAdmin() {
 
 function openUserEditor(isEdit = false) {
   $('userEditor').style.display = 'block';
+  $('userEditorEmpty').style.display = 'none';
   $('createUserBtn').textContent = isEdit ? 'Save user' : 'Create user';
   $('newUsername').disabled = isEdit;
   $('newUserPassword').style.display = isEdit ? 'none' : 'inline-block';
   $('newUserPassword').placeholder = isEdit ? 'password change via reset button' : 'password (required for new user)';
   $('resetUserPwBtn').style.display = isEdit ? 'inline-block' : 'none';
+  $('deleteUserBtn').style.display = isEdit ? 'inline-block' : 'none';
+  $('userSourceHint').style.display = 'none';
 }
 
 function closeUserEditor() {
   state.selectedUserEditId = null;
   $('userEditor').style.display = 'none';
+  $('userEditorEmpty').style.display = 'block';
   $('newUsername').value = '';
   $('newUserPassword').value = '';
   $('newFullName').value = '';
@@ -900,18 +958,24 @@ function closeUserEditor() {
   $('newUserAdmin').disabled = false;
   $('createUserBtn').disabled = false;
   $('resetUserPwBtn').style.display = 'none';
+  $('deleteUserBtn').style.display = 'none';
+  $('userSourceHint').style.display = 'none';
 }
 
 function openFloorEditor(isEdit = false) {
   $('floorEditor').style.display = 'block';
+  $('floorEditorEmpty').style.display = 'none';
   $('createFloorBtn').textContent = isEdit ? 'Save floor' : 'Create floor';
+  $('deleteFloorBtn').style.display = isEdit ? 'inline-block' : 'none';
 }
 
 function closeFloorEditor() {
   state.selectedFloorEditId = null;
   $('floorEditor').style.display = 'none';
+  $('floorEditorEmpty').style.display = 'block';
   $('floorName').value = '';
   $('floorImageFile').value = '';
+  $('deleteFloorBtn').style.display = 'none';
   setFloorImagePreview('');
 }
 
@@ -951,7 +1015,7 @@ async function loadAdminLists() {
     const floors = await api('/api/floors');
     state.floors = floors;
     renderUsersList();
-    $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${state.selectedFloorEditId===f.id?'background:#15244d;':''}">#${f.id} ${esc(f.name)}${f.image_path ? ' · <span class=\"muted\">image set</span>' : ''} <button onclick="event.stopPropagation();delFloor(${f.id})">delete</button></div>`).join('') || '<div>No floors</div>';
+    $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${(state.selectedFloorEditId===f.id && $('floorEditor').style.display !== 'none')?'background:#e8f4f8;':''}"><span class="item-label">${esc(f.name)}</span></div>`).join('') || '<div>No floors</div>';
 
     const current = Number($('spaceFloorFilter').value || 0);
     $('spaceFloorFilter').innerHTML = floors.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('') || '<option value="">No floors</option>';
@@ -970,9 +1034,23 @@ function renderUsersList() {
     const fullName = String(u.fullName || '').toLowerCase();
     const username = String(u.username || '').toLowerCase();
     return fullName.includes(q) || username.includes(q);
+  }).sort((a, b) => {
+    const rank = (u) => u.isBuiltinAdmin ? 0 : (u.isAdmin ? 1 : 2);
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    const na = String(a.fullName || a.username || '').toLowerCase();
+    const nb = String(b.fullName || b.username || '').toLowerCase();
+    if (na !== nb) return na.localeCompare(nb);
+    return String(a.username || '').toLowerCase().localeCompare(String(b.username || '').toLowerCase());
   });
 
-  $('usersList').innerHTML = filtered.map(u => `<div onclick="selectUserForEdit(${u.id})" style="cursor:pointer;${state.selectedUserEditId===u.id?'background:#15244d;':''}">${u.fullName || u.username} <span class=\"muted\">${u.isAdmin?'': `(${u.username})`}</span> ${u.authProvider?`<span class=\"muted\">sso:${esc(u.authProvider)}</span>`:''} ${u.isBuiltinAdmin?'<span class=\"muted\">built-in</span>':''} ${u.isBuiltinAdmin?'':`<button class=\"danger\" onclick="event.stopPropagation();delUser(${u.id})">delete</button>`}</div>`).join('') || '<div>No users</div>';
+  $('usersList').innerHTML = filtered.map((u) => {
+    const label = u.isBuiltinAdmin
+      ? 'admin'
+      : `${u.fullName || u.username} <span class=\"muted\">(${u.username})</span>`;
+    return `<div onclick="selectUserForEdit(${u.id})" style="cursor:pointer;${state.selectedUserEditId===u.id?'background:#e8f4f8;':''}"><span class="item-label">${label}</span></div>`;
+  }).join('') || '<div>No users</div>';
 }
 
 function selectUserForEdit(id) {
@@ -985,13 +1063,23 @@ function selectUserForEdit(id) {
   $('newUserPassword').value = '';
   $('newUserAdmin').checked = !!u.isAdmin;
   if (u.isBuiltinAdmin) {
+    $('newUsername').disabled = true;
+    $('newFullName').disabled = true;
     $('newUserAdmin').disabled = true;
     $('createUserBtn').disabled = true;
+    $('createUserBtn').style.display = 'none';
+    $('deleteUserBtn').style.display = 'none';
+    $('resetUserPwBtn').style.display = 'inline-block';
   } else {
+    $('newUsername').disabled = true;
+    $('newFullName').disabled = false;
     $('newUserAdmin').disabled = false;
     $('createUserBtn').disabled = false;
+    $('createUserBtn').style.display = 'inline-block';
+    $('deleteUserBtn').style.display = 'inline-block';
+    $('resetUserPwBtn').style.display = u.authProvider ? 'none' : 'inline-block';
   }
-  $('resetUserPwBtn').style.display = u.authProvider ? 'none' : 'inline-block';
+  $('userSourceHint').style.display = u.authProvider === 'microsoft' ? 'block' : 'none';
   loadAdminLists();
 }
 
@@ -1096,16 +1184,20 @@ async function createFloor() {
 
 function openSpaceEditor(isEdit = false) {
   $('spaceEditor').style.display = 'block';
+  $('spaceEditorEmpty').style.display = 'none';
   $('createSpaceBtn').textContent = isEdit ? 'Save space' : 'Create space';
+  $('deleteSpaceBtn').style.display = isEdit ? 'inline-block' : 'none';
 }
 
 function closeSpaceEditor() {
   state.selectedSpaceEditId = null;
   $('spaceEditor').style.display = 'none';
+  $('spaceEditorEmpty').style.display = 'block';
   $('spaceNumber').value = '';
   state.spaceMapX = 50;
   state.spaceMapY = 50;
   state.spaceMapZoom = 260;
+  $('deleteSpaceBtn').style.display = 'none';
   renderSpaceMapEditor();
 }
 
@@ -1129,7 +1221,7 @@ async function loadSpacesList() {
   }
   const spaces = await api(`/api/spaces?floorId=${floorId}`);
   state.spaces = spaces;
-  $('spacesList').innerHTML = spaces.map(s => `<div onclick="selectSpaceForEdit(${s.id})" style="cursor:pointer;${state.selectedSpaceEditId===s.id?'background:#15244d;':''}">#${esc(s.space_number)} <button onclick="event.stopPropagation();delSpace(${s.id})">delete</button></div>`).join('') || '<div>No spaces</div>';
+  $('spacesList').innerHTML = spaces.map(s => `<div onclick="selectSpaceForEdit(${s.id})" style="cursor:pointer;${state.selectedSpaceEditId===s.id?'background:#e8f4f8;':''}"><span class="item-label">${esc(s.space_number)}</span></div>`).join('') || '<div>No spaces</div>';
   renderSpaceMapEditor();
 }
 
@@ -1141,9 +1233,11 @@ function selectSpaceForEdit(id) {
   $('spaceNumber').value = s.space_number || '';
   state.spaceMapX = s.map_x ?? 50;
   state.spaceMapY = s.map_y ?? 50;
+  // Restore saved zoom for this space in editor (same value used later in booking preview).
   state.spaceMapZoom = s.map_zoom ?? 260;
   renderSpaceMapEditor();
-  loadSpacesList();
+  // Avoid reloading list on each click; keep selection responsive after save/edit.
+  $('spacesList').innerHTML = state.spaces.map(x => `<div onclick="selectSpaceForEdit(${x.id})" style="cursor:pointer;${state.selectedSpaceEditId===x.id?'background:#e8f4f8;':''}"><span class="item-label">${esc(x.space_number)}</span></div>`).join('') || '<div>No spaces</div>';
 }
 
 async function delSpace(id) {
@@ -1184,7 +1278,7 @@ async function createSpace() {
   $('openChangePasswordPanel').onclick = ()=> $('changePasswordModal').style.display='flex';
   $('changePasswordClose').onclick = ()=> $('changePasswordModal').style.display='none';
   $('changePasswordConfirm').onclick = changePassword;
-  ['oldPassword','newPassword'].forEach(id => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') changePassword(); }));
+  ['oldPassword','newPassword','newPasswordRepeat'].forEach(id => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') changePassword(); }));
   $('messageOk').onclick = () => closeMessageModal(true);
   $('messageCancel').onclick = () => closeMessageModal(false);
   ['loginUser','loginPassword'].forEach(id => $(id).addEventListener('keydown', (e) => {
@@ -1205,12 +1299,25 @@ async function createSpace() {
   $('cancelUserEdit').onclick = () => closeUserEditor();
   $('resetUserPwBtn').onclick = async () => {
     if (!state.selectedUserEditId) return;
+    if (!(await uiConfirm('Reset this user password?', 'Reset password'))) return;
     await resetPw(state.selectedUserEditId);
+  };
+  $('deleteUserBtn').onclick = async () => {
+    if (!state.selectedUserEditId) return;
+    await delUser(state.selectedUserEditId);
   };
   $('createNewFloorBtn').onclick = () => { closeFloorEditor(); openFloorEditor(false); };
   $('cancelFloorEdit').onclick = () => closeFloorEditor();
+  $('deleteFloorBtn').onclick = async () => {
+    if (!state.selectedFloorEditId) return;
+    await delFloor(state.selectedFloorEditId);
+  };
   $('createNewSpaceBtn').onclick = () => { closeSpaceEditor(); openSpaceEditor(false); };
   $('cancelSpaceEdit').onclick = () => closeSpaceEditor();
+  $('deleteSpaceBtn').onclick = async () => {
+    if (!state.selectedSpaceEditId) return;
+    await delSpace(state.selectedSpaceEditId);
+  };
   $('spaceFloorFilter').addEventListener('change', async () => { closeSpaceEditor(); await loadSpacesList(); });
   $('floorImageFile').addEventListener('change', async () => {
     const file = $('floorImageFile').files?.[0];
@@ -1235,6 +1342,8 @@ async function createSpace() {
   ['viewDate','onlyFree'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
   $('bookingSearch').addEventListener('input', () => { state.bookingPage = 1; renderTable(); });
   $('userSearch').addEventListener('input', () => renderUsersList());
+  $('mapMiniZoomIn').addEventListener('click', () => updateMiniPos((state.miniZoom || 260) + 20));
+  $('mapMiniZoomOut').addEventListener('click', () => updateMiniPos((state.miniZoom || 260) - 20));
 
   ['bookingModal','releaseModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
   $('bootstrapModal').onclick = () => {};
@@ -1257,8 +1366,10 @@ async function createSpace() {
   (function dragMini(){
     const view = $('mapMiniView'); let drag=false,sx=0,sy=0,px=0,py=0;
     const down=(x,y)=>{drag=true;view.classList.add('dragging');sx=x;sy=y;px=state.panX;py=state.panY};
-    const move=(x,y)=>{if(!drag)return;const r=view.getBoundingClientRect();state.panX=px-(x-sx)/r.width*100;state.panY=py-(y-sy)/r.height*100;updateMiniPos(spotAt()?.map_zoom ?? 260)};
+    const move=(x,y)=>{if(!drag)return;const r=view.getBoundingClientRect();state.panX=px-(x-sx)/r.width*100;state.panY=py-(y-sy)/r.height*100;updateMiniPos()};
     const up=()=>{drag=false;view.classList.remove('dragging')};
+    const wheel=(e)=>{e.preventDefault(); updateMiniPos((state.miniZoom || 260) + (e.deltaY < 0 ? 20 : -20));};
+    view.addEventListener('wheel', wheel, { passive:false });
     view.addEventListener('mousedown',e=>down(e.clientX,e.clientY)); window.addEventListener('mousemove',e=>move(e.clientX,e.clientY)); window.addEventListener('mouseup',up);
     view.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)down(t.clientX,t.clientY)}); view.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)move(t.clientX,t.clientY)}); window.addEventListener('touchend',up);
   })();
@@ -1268,6 +1379,14 @@ async function createSpace() {
     const down=(x,y)=>{drag=true;view.classList.add('dragging');sx=x;sy=y;px=state.spaceMapX;py=state.spaceMapY};
     const move=(x,y)=>{if(!drag)return;const r=view.getBoundingClientRect();state.spaceMapX=px-(x-sx)/r.width*100;state.spaceMapY=py-(y-sy)/r.height*100;renderSpaceMapEditor();};
     const up=()=>{drag=false;view.classList.remove('dragging')};
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const onWheel = (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 12 : -12;
+      state.spaceMapZoom = clamp((state.spaceMapZoom || 260) + delta, 100, 500);
+      renderSpaceMapEditor();
+    };
+    view.addEventListener('wheel', onWheel, { passive: false });
     view.addEventListener('mousedown',e=>down(e.clientX,e.clientY)); window.addEventListener('mousemove',e=>move(e.clientX,e.clientY)); window.addEventListener('mouseup',up);
     view.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)down(t.clientX,t.clientY)}); view.addEventListener('touchmove',e=>{const t=e.touches[0];if(t)move(t.clientX,t.clientY)}); window.addEventListener('touchend',up);
   })();
