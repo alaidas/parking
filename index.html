@@ -270,7 +270,7 @@
     <div class="panel">
       <div class="title">Space Details</div><div class="muted" id="spotHint">Select a spot from the map</div>
       <div class="kv" id="details"></div>
-      <div class="map-mini" id="mapMini"><div class="map-mini-view" id="mapMiniView"></div><div class="map-mini-caption" id="mapMiniCaption"></div><div class="actions" style="margin:8px; margin-top:6px;"><button id="mapMiniZoomOut" type="button">−</button><button id="mapMiniZoomIn" type="button">+</button></div></div>
+      <div class="map-mini" id="mapMini"><div class="map-mini-view" id="mapMiniView"></div><div class="map-mini-caption" id="mapMiniCaption"></div></div>
       <div class="actions" id="actions"></div>
     </div>
   </div>
@@ -1342,8 +1342,6 @@ async function createSpace() {
   ['viewDate','onlyFree'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
   $('bookingSearch').addEventListener('input', () => { state.bookingPage = 1; renderTable(); });
   $('userSearch').addEventListener('input', () => renderUsersList());
-  $('mapMiniZoomIn').addEventListener('click', () => updateMiniPos((state.miniZoom || 260) + 20));
-  $('mapMiniZoomOut').addEventListener('click', () => updateMiniPos((state.miniZoom || 260) - 20));
 
   ['bookingModal','releaseModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
   $('bootstrapModal').onclick = () => {};
