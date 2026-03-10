@@ -171,6 +171,16 @@
       align-items: center;
       gap: 8px;
     }
+    .date-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .date-inline input[type="date"] {
+      min-width: 0;
+      max-width: 100%;
+    }
     .checkbox-inline input[type="checkbox"] {
       width: auto;
       margin: 0;
@@ -231,12 +241,15 @@
       .title { font-size: 16px; }
       .panel { padding: 12px; }
       .toolbar { padding: 10px; gap: 8px; }
+      .toolbar > * { min-width: 0; }
       .toolbar select,
       .toolbar button,
       .toolbar input,
-      .toolbar label { width: 100%; }
+      .toolbar label { width: 100%; max-width: 100%; }
       .toolbar input[type="checkbox"] { width: auto; }
       .toolbar .checkbox-inline { justify-content: flex-start; }
+      .toolbar .date-inline { justify-content: space-between; }
+      .toolbar .date-inline input[type="date"] { width: auto; flex: 1; }
       .header-actions button { flex: 1 1 calc(50% - 6px); }
       .pill { width: 100%; text-align: center; }
 
@@ -270,7 +283,7 @@
 
   <div class="panel toolbar">
     <select id="floorSelect"></select>
-    <label class="muted">View date <input id="viewDate" type="date" /></label>
+    <label class="muted date-inline">View date <input id="viewDate" type="date" /></label>
     <label class="muted checkbox-inline"><input type="checkbox" id="onlyFree" /> Only free</label>
     <button id="clearFilters">Clear filters</button>
   </div>
@@ -436,7 +449,12 @@
 
 <script>
 const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, miniZoom:260, panX:0, panY:0, baseX:50, baseY:50, bookingPage:1, bookingPageSize:25 };
+const AUTH_TOKEN_KEY = 'parking.auth.token';
 const $ = id => document.getElementById(id);
+const persistToken = (token) => {
+  if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+  else localStorage.removeItem(AUTH_TOKEN_KEY);
+};
 const fmtDate = d => new Date(`${d}T00:00:00`).toLocaleDateString();
 const fmtDateTime = d => d ? new Date(d).toLocaleString() : '-';
 const getViewDate = () => $('viewDate').value;
@@ -481,6 +499,7 @@ async function api(path, opts={}) {
 
   if (r.status === 401 && state.token) {
     state.token = '';
+    persistToken('');
     state.me = null;
     state.spaces = [];
     state.bookings = [];
@@ -932,7 +951,9 @@ async function doLogin() {
   setLoginLoading(true);
   try {
     const out = await api('/api/login', { method:'POST', body: JSON.stringify({ username: $('loginUser').value.trim(), password: $('loginPassword').value })});
-    state.token = out.token; state.me = { ...out.user, userId: out.user.id };
+    state.token = out.token;
+    persistToken(state.token);
+    state.me = { ...out.user, userId: out.user.id };
     $('loginModal').style.display='none'; setAuthUI(); await refreshAll();
   } catch (e) { uiAlert(e.message); }
   finally { setLoginLoading(false); }
@@ -1298,7 +1319,7 @@ async function createSpace() {
   ['loginUser','loginPassword'].forEach(id => $(id).addEventListener('keydown', (e) => {
     if (e.key === 'Enter') doLogin();
   }));
-  $('logoutBtn').onclick = async ()=>{ state.token=''; state.me=null; state.spaces=[]; state.bookings=[]; state.availability=[]; state.selectedSpot=null; setAuthUI(); await refreshAll(); };
+  $('logoutBtn').onclick = async ()=>{ state.token=''; persistToken(''); state.me=null; state.spaces=[]; state.bookings=[]; state.availability=[]; state.selectedSpot=null; setAuthUI(); await refreshAll(); };
   $('bootstrapConfirm').onclick = createAdmin;
   $('bootstrapPassword').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') createAdmin();
@@ -1406,7 +1427,14 @@ async function createSpace() {
   const qp = new URLSearchParams(window.location.search);
   const t = qp.get('token');
   const ssoErr = qp.get('sso_error');
-  if (t) { state.token = t; window.history.replaceState({}, '', '/'); }
+  const storedToken = localStorage.getItem(AUTH_TOKEN_KEY) || '';
+  if (t) {
+    state.token = t;
+    persistToken(state.token);
+    window.history.replaceState({}, '', '/');
+  } else if (storedToken) {
+    state.token = storedToken;
+  }
   if (ssoErr) { window.history.replaceState({}, '', '/'); uiAlert(`SSO login failed: ${ssoErr}`); }
 
   checkBootstrap();
