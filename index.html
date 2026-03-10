@@ -357,7 +357,7 @@
       <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#f5f9fc"/><line x1="0" y1="130" x2="1240" y2="130" stroke="#cfe0ea" stroke-width="2" opacity="1"/><text x="25" y="75" class="lot-title" text-anchor="start">PARKING</text><text x="25" y="120" class="lot-title" text-anchor="start" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="#cfe0ea" stroke-width="2" opacity="1"/></svg></div>
       <div class="chips"><span class="chip">🟢 Free</span><span class="chip">🔴 Booked</span><span class="chip">🟡 Ending soon</span></div>
     </div>
-    <div class="panel">
+    <div class="panel" id="spaceDetailsPanel">
       <div class="title">Space Details</div><div class="muted" id="spotHint">Select a spot from the map</div>
       <div class="kv" id="details"></div>
       <div class="map-mini" id="mapMini"><div class="map-mini-view" id="mapMiniView"></div><div class="map-mini-caption" id="mapMiniCaption"></div></div>
@@ -644,6 +644,15 @@ function renderFloorSelect() {
 
 function currentFloorObj() { return state.floors.find(f => f.id === floor()); }
 function spotAt() { return state.availability.find(s => s.id === state.selectedSpot); }
+function isMobileLayout() { return window.matchMedia('(max-width: 768px)').matches; }
+function scrollToSpaceDetails() {
+  if (!isMobileLayout()) return;
+  const panel = $('spaceDetailsPanel');
+  if (!panel) return;
+  requestAnimationFrame(() => {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
 
 function statusClass(s) {
   if (!s?.isBooked) return 'free';
@@ -759,7 +768,7 @@ function renderMap() {
     const blockedForViewer = !!s.isBooked && (!state.me || (!state.me?.isAdmin && !isOwnBooking));
     g.append(rect,txt);
     if (!blockedForViewer) {
-      g.onclick = ()=>{ state.selectedSpot=s.id; render(); };
+      g.onclick = ()=>{ state.selectedSpot=s.id; render(); scrollToSpaceDetails(); };
     } else {
       g.style.cursor = 'not-allowed';
     }
