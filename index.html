@@ -606,6 +606,7 @@ function renderMap() {
     if (sa.num !== sb.num) return sa.num - sb.num;
     return sa.raw.localeCompare(sb.raw);
   });
+  const visibleSpaces = onlyFree ? orderedSpaces.filter(s => !s.isBooked) : orderedSpaces;
 
   const buildDynamicLayouts = (items) => {
     const svgW = 1240;
@@ -680,10 +681,9 @@ function renderMap() {
     return layouts;
   };
 
-  state.displayLayouts = buildDynamicLayouts(orderedSpaces);
+  state.displayLayouts = buildDynamicLayouts(visibleSpaces);
 
-  for (const s of orderedSpaces) {
-    if (onlyFree && s.isBooked) continue;
+  for (const s of visibleSpaces) {
     const d = state.displayLayouts[s.id] || { x: s.x ?? 20, y: s.y ?? 160, w: s.w ?? 72, h: s.h ?? 170 };
     const g = document.createElementNS('http://www.w3.org/2000/svg','g');
     g.setAttribute('class', `spot-group ${statusClass(s)} ${state.selectedSpot===s.id?'selected':''}`);
