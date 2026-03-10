@@ -206,10 +206,6 @@
       align-items: center;
     }
     .login-actions #loginConfirm,
-    .login-actions #loginClose {
-      flex: 0 0 auto;
-    }
-    .login-actions #loginConfirm,
     .login-actions #loginMicrosoft {
       height: 42px;
     }
@@ -224,6 +220,20 @@
 
     .overlay { position: fixed; inset: 0; background: rgba(5,16,29,.42); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
     .modal { width: 100%; max-width: 740px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 16px 44px rgba(11,31,51,.2); }
+    .login-modal {
+      width: min(500px, calc(100vw - 32px));
+      max-width: 500px;
+      min-width: min(320px, calc(100vw - 32px));
+    }
+    .login-modal .row,
+    .login-modal .actions {
+      min-width: 0;
+    }
+    .login-modal input,
+    .login-modal button {
+      min-width: 0;
+      max-width: 100%;
+    }
     .row { display: grid; gap: 8px; margin-bottom: 10px; }
     .header-actions { display: flex; align-items: center; gap: 8px; }
 
@@ -328,12 +338,14 @@
       th, td { padding: 8px; }
 
       .modal { padding: 12px; }
+      .login-modal { width: calc(100vw - 20px); min-width: 0; }
       .row { margin-bottom: 8px; }
     }
   </style>
 </head>
 <body>
 <div class="app">
+  <div id="appShell">
   <div class="header">
     <div><div class="title">Parking Booking Dashboard</div><div class="muted" id="floorStats">No floor selected</div></div>
     <div class="header-actions">
@@ -366,11 +378,12 @@
   </div>
 
   <div class="panel" id="bookingsSection" style="margin-top:14px;"><div class="title" id="bookingsTitle">Bookings</div><div class="row" style="max-width:340px; margin-top:8px;"><input id="bookingSearch" placeholder="Search booked by user" /></div><table><thead><tr><th>Floor</th><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th><th>Created</th></tr></thead><tbody id="bookingRows"></tbody></table><div class="actions" id="bookingPager" style="justify-content:space-between; align-items:center;"></div></div>
+  </div>
 </div>
 
 <div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password</label><input id="bootstrapPassword" type="password" /></div><div class="row" id="bootstrapTokenRow" style="display:none"><label class="muted">Bootstrap token</label><input id="bootstrapToken" type="password" placeholder="Install token" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
 
-<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions login-actions"><button class="btn-primary" id="loginConfirm">Log in</button><button class="btn-microsoft" id="loginMicrosoft" style="display:none"><span class="ms-content"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="13" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="13" width="10" height="10" fill="#00a4ef"/><rect x="13" y="13" width="10" height="10" fill="#ffb900"/></svg><span class="ms-label">Sign in with Microsoft</span></span></button><button id="loginClose">Close</button></div></div></div>
+<div class="overlay" id="loginModal"><div class="modal login-modal"><h3>Sign in</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions login-actions"><button class="btn-primary" id="loginConfirm">Log in</button><button class="btn-microsoft" id="loginMicrosoft" style="display:none"><span class="ms-content"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="13" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="13" width="10" height="10" fill="#00a4ef"/><rect x="13" y="13" width="10" height="10" fill="#ffb900"/></svg><span class="ms-label">Sign in with Microsoft</span></span></button></div></div></div>
 
 <div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div><div class="row"><label class="muted">Repeat new password</label><input id="newPasswordRepeat" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
 
@@ -589,21 +602,24 @@ function dateAdd(date, days) {
 }
 
 function setAuthUI() {
+  const isLoggedIn = !!state.me;
   $('currentUserLabel').textContent = `User: ${state.me ? (state.me.fullName || state.me.username) : 'guest'}`;
-  $('openLoginPanel').style.display = state.me ? 'none' : 'inline-block';
+  $('openLoginPanel').style.display = isLoggedIn ? 'none' : 'inline-block';
   $('openAdminPanel').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
-  $('openChangePasswordPanel').style.display = (state.me && !state.me.authProvider) ? 'inline-block' : 'none';
-  $('logoutBtn').style.display = state.me ? 'inline-block' : 'none';
+  $('openChangePasswordPanel').style.display = (isLoggedIn && !state.me.authProvider) ? 'inline-block' : 'none';
+  $('logoutBtn').style.display = isLoggedIn ? 'inline-block' : 'none';
   $('loginMicrosoft').style.display = state.ssoEnabled ? 'inline-block' : 'none';
+  $('appShell').style.display = isLoggedIn ? 'block' : 'none';
+  $('loginModal').style.display = isLoggedIn ? 'none' : 'flex';
 
   const bookingsTitle = $('bookingsTitle');
   if (bookingsTitle) {
-    bookingsTitle.textContent = state.me?.isAdmin ? 'Bookings' : (state.me ? 'My bookings' : 'Bookings');
+    bookingsTitle.textContent = state.me?.isAdmin ? 'Bookings' : (isLoggedIn ? 'My bookings' : 'Bookings');
   }
 
   const bookingsSection = $('bookingsSection');
   if (bookingsSection) {
-    bookingsSection.style.display = state.me ? 'block' : 'none';
+    bookingsSection.style.display = isLoggedIn ? 'block' : 'none';
   }
 }
 
@@ -616,6 +632,16 @@ async function refreshSsoStatus() {
 
 async function refreshAll() {
   await refreshSsoStatus();
+  if (!state.me) {
+    state.floors = [];
+    state.spaces = [];
+    state.availability = [];
+    state.bookings = [];
+    state.selectedSpot = null;
+    renderFloorSelect();
+    render();
+    return;
+  }
   state.floors = await api('/api/floors');
   renderFloorSelect();
   if (!floor() && state.floors[0]) $('floorSelect').value = state.floors[0].id;
@@ -894,6 +920,18 @@ function renderTable() {
 }
 
 function render() {
+  if (!state.me) {
+    $('floorStats').textContent = 'Please log in';
+    $('lotTitleB').textContent = 'FLOOR';
+    $('spotLayer').innerHTML = '';
+    $('spotHint').textContent = 'Log in to view parking spaces';
+    $('details').innerHTML = '';
+    $('actions').innerHTML = '';
+    $('mapMini').style.display = 'none';
+    $('bookingRows').innerHTML = '';
+    $('bookingPager').innerHTML = '';
+    return;
+  }
   const f = currentFloorObj();
   $('floorStats').textContent = f ? `${f.name} · ${state.spaces.length} spaces` : 'No floor selected';
   const floorTitle = f ? f.name.toUpperCase() : 'FLOOR';
@@ -1012,7 +1050,6 @@ function setLoginLoading(on) {
   $('loginPassword').disabled = !!on;
   $('loginConfirm').disabled = !!on;
   $('loginMicrosoft').disabled = !!on;
-  $('loginClose').disabled = !!on;
 }
 
 function startMicrosoftLogin() {
@@ -1027,7 +1064,7 @@ async function doLogin() {
     state.token = out.token;
     persistToken(state.token);
     state.me = { ...out.user, userId: out.user.id };
-    $('loginModal').style.display='none'; setAuthUI(); await refreshAll();
+    setAuthUI(); await refreshAll();
   } catch (e) { uiAlert(e.message); }
   finally { setLoginLoading(false); }
 }
@@ -1395,7 +1432,7 @@ async function createSpace() {
 (function init(){
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('viewDate').value = d.toISOString().slice(0,10);
 
-  $('openLoginPanel').onclick = ()=> { setLoginLoading(false); $('loginModal').style.display='flex'; }; $('loginClose').onclick = ()=> { setLoginLoading(false); $('loginModal').style.display='none'; }; $('loginConfirm').onclick = doLogin; $('loginMicrosoft').onclick = startMicrosoftLogin;
+  $('openLoginPanel').onclick = ()=> { setLoginLoading(false); $('loginModal').style.display='flex'; }; $('loginConfirm').onclick = doLogin; $('loginMicrosoft').onclick = startMicrosoftLogin;
   $('openChangePasswordPanel').onclick = ()=> $('changePasswordModal').style.display='flex';
   $('changePasswordClose').onclick = ()=> $('changePasswordModal').style.display='none';
   $('changePasswordConfirm').onclick = changePassword;
@@ -1533,8 +1570,7 @@ async function createSpace() {
         const me = await api('/api/me');
         state.me = me;
         setAuthUI();
-        await refreshBookings();
-        render();
+        await refreshAll();
       } catch { /* ignore */ }
     }
   }).catch(() => {});
