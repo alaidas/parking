@@ -33,7 +33,7 @@ Frontend coverage:
 Implemented:
 - No hardcoded runtime floors/spaces required.
 - Admin can create/update/delete floors.
-- Floor image path can be stored.
+- Floor images are stored in SQLite and returned to the UI as data URLs.
 - Admin can create/update/delete spaces per floor.
 - Unique `(floor_id, space_number)` enforced in DB.
 - Space visual fields are stored (`x,y,w,h,dir`) and mini defaults (`map_x,map_y,map_zoom`).

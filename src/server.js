@@ -13,8 +13,6 @@ const PORT = Number(process.env.PORT || 3000);
 const ROOT = process.cwd();
 const DATA_DIR = path.join(ROOT, 'data');
 const SECRETS_DIR = path.join(ROOT, 'secrets');
-const UPLOADS_DIR = path.join(ROOT, 'uploads');
-const FLOOR_UPLOADS_DIR = path.join(UPLOADS_DIR, 'floors');
 const DB_PATH = path.join(DATA_DIR, 'parking.sqlite3');
 const DB_KEY_PATH = path.join(SECRETS_DIR, 'db-access.key');
 const APP_BASE_URL = String(process.env.APP_BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
@@ -30,10 +28,23 @@ const rateLimitBuckets = new Map();
 const oauthStates = new Map();
 const oidcCache = new Map();
 
+function logEvent(event, fields = {}) {
+  const payload = {
+    ts: new Date().toISOString(),
+    event,
+    ...fields
+  };
+  console.log(JSON.stringify(payload));
+}
+
 function newErrorId(prefix = 'ERR') {
   const ts = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
   const rnd = crypto.randomBytes(3).toString('hex');
   return `${prefix}-${ts}-${rnd}`;
+}
+
+function requestId() {
+  return crypto.randomBytes(8).toString('hex');
 }
 
 function ensureDir(p) {
@@ -122,11 +133,6 @@ function requireJsonObject(v, label = 'payload') {
   return v;
 }
 
-function safeExtFromName(filename = '') {
-  const ext = path.extname(filename).toLowerCase();
-  return ['.png', '.jpg', '.jpeg', '.webp'].includes(ext) ? ext : '';
-}
-
 function detectImageExtension(buf) {
   if (!Buffer.isBuffer(buf)) return null;
   if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return '.png';
@@ -135,7 +141,14 @@ function detectImageExtension(buf) {
   return null;
 }
 
-function saveFloorImageFromData(imageData, imageName = 'floor.png') {
+function mimeFromImageExtension(ext) {
+  if (ext === '.png') return 'image/png';
+  if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+  if (ext === '.webp') return 'image/webp';
+  return null;
+}
+
+function normalizeFloorImageData(imageData) {
   if (!imageData || typeof imageData !== 'string') return null;
   const match = imageData.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/i);
   if (!match) throw new Error('Invalid floor image format');
@@ -143,14 +156,28 @@ function saveFloorImageFromData(imageData, imageName = 'floor.png') {
   if (!raw.length || raw.length > FLOOR_IMAGE_MAX_BYTES) throw new Error('Floor image size is invalid');
   const detectedExt = detectImageExtension(raw);
   if (!detectedExt) throw new Error('Unsupported floor image content');
-  const nameExt = safeExtFromName(imageName);
-  const finalExt = nameExt && (nameExt === detectedExt || (nameExt === '.jpeg' && detectedExt === '.jpg')) ? detectedExt : detectedExt;
-  ensureDir(UPLOADS_DIR);
-  ensureDir(FLOOR_UPLOADS_DIR);
-  const filename = `floor-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${finalExt}`;
-  const outPath = path.join(FLOOR_UPLOADS_DIR, filename);
-  fs.writeFileSync(outPath, raw, { mode: 0o600 });
-  return `./uploads/floors/${filename}`;
+  const mime = mimeFromImageExtension(detectedExt);
+  return `data:${mime};base64,${raw.toString('base64')}`;
+}
+
+function localFloorImageToDataUrl(imagePath) {
+  const clean = String(imagePath || '').trim();
+  if (!clean) return null;
+  if (/^data:image\//i.test(clean)) return clean;
+  if (/^https?:\/\//i.test(clean)) return clean;
+  const rel = clean.replace(/^[.][\\/]/, '').replace(/^[/\\]+/, '');
+  const abs = path.resolve(ROOT, rel);
+  if (!abs.startsWith(ROOT) || !fs.existsSync(abs) || !fs.statSync(abs).isFile()) return null;
+  const raw = fs.readFileSync(abs);
+  if (!raw.length || raw.length > FLOOR_IMAGE_MAX_BYTES) return null;
+  const ext = detectImageExtension(raw);
+  const mime = mimeFromImageExtension(ext);
+  if (!mime) return null;
+  return `data:${mime};base64,${raw.toString('base64')}`;
+}
+
+function floorImageValue(row) {
+  return row?.image_data || row?.image_path || null;
 }
 
 function getMeta(key, fallback = null) {
@@ -291,6 +318,7 @@ function migrate(database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       image_path TEXT,
+      image_data TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -344,10 +372,19 @@ function migrate(database) {
   if (!hasColumn(database, 'users', 'full_name')) database.exec('ALTER TABLE users ADD COLUMN full_name TEXT');
   if (!hasColumn(database, 'users', 'auth_provider')) database.exec('ALTER TABLE users ADD COLUMN auth_provider TEXT');
   if (!hasColumn(database, 'users', 'provider_subject')) database.exec('ALTER TABLE users ADD COLUMN provider_subject TEXT');
+  if (!hasColumn(database, 'floors', 'image_data')) database.exec('ALTER TABLE floors ADD COLUMN image_data TEXT');
   database.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_users_provider_subject ON users(auth_provider, provider_subject) WHERE provider_subject IS NOT NULL');
   database.exec("UPDATE users SET full_name = COALESCE(NULLIF(full_name, ''), username)");
   database.exec('CREATE INDEX IF NOT EXISTS ix_sessions_token_hash ON sessions(token_hash)');
   database.exec('CREATE INDEX IF NOT EXISTS ix_sessions_user_id ON sessions(user_id)');
+
+  const legacyFloors = database.prepare('SELECT id, image_path, image_data FROM floors').all();
+  for (const floor of legacyFloors) {
+    if (floor.image_data || !floor.image_path) continue;
+    const asDataUrl = localFloorImageToDataUrl(floor.image_path);
+    if (!asDataUrl) continue;
+    database.prepare('UPDATE floors SET image_data = ?, image_path = NULL WHERE id = ?').run(asDataUrl, floor.id);
+  }
 }
 
 function openDbStrict() {
@@ -464,6 +501,40 @@ function clientIp(req) {
     .split(',')[0]
     .trim();
 }
+
+app.use((req, res, next) => {
+  req.requestId = requestId();
+  res.setHeader('X-Request-Id', req.requestId);
+  next();
+});
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://login.microsoftonline.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+  );
+  next();
+});
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    logEvent('http_request', {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      durationMs: Date.now() - start,
+      ip: clientIp(req)
+    });
+  });
+  next();
+});
 
 function consumeRateLimit(key, max, windowMs) {
   const now = Date.now();
@@ -612,10 +683,9 @@ function validateFloorPayload(payload, existingFloor = null) {
   const p = requireJsonObject(payload);
   const name = normText(p.name ?? existingFloor?.name, 120);
   if (!name) throw new Error('name required');
-  const imagePath = normText(p.imagePath ?? existingFloor?.image_path ?? '', 512);
   const imageData = p.imageData ? String(p.imageData) : '';
-  const imageName = normText(p.imageName || 'floor.png', 120);
-  return { name, imagePath: imagePath || null, imageData, imageName };
+  const clearImage = !!p.clearImage;
+  return { name, imageData, clearImage };
 }
 
 function validateSpacePayload(payload, existingSpace = null) {
@@ -780,6 +850,7 @@ app.post('/api/admin/sso', auth, requireAdmin, (req, res) => {
     if (payload.clientSecret !== null) setMeta('sso_client_secret_enc', payload.clientSecret ? encryptSecret(payload.clientSecret) : '');
     if (payload.enabled && !isSsoConfigured()) return res.status(400).json({ error: 'Provide tenant/client/secret/redirect before enabling SSO' });
     setMeta('sso_enabled', payload.enabled ? '1' : '0');
+    logEvent('sso_config_updated', { requestId: req.requestId, adminUserId: req.auth.userId, enabled: payload.enabled, tenantId: payload.tenantId });
     res.json({ ok: true, enabled: payload.enabled, configured: isSsoConfigured() });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -865,6 +936,7 @@ app.get('/api/auth/microsoft/callback', rateLimit('sso-callback', AUTH_RATE_LIMI
     const token = issueToken(user);
     return res.redirect(`/?token=${encodeURIComponent(token)}&sso=1`);
   } catch (err) {
+    logEvent('sso_callback_failed', { error: String(err?.message || err) });
     console.error('SSO callback error', err);
     return res.redirect('/?sso_error=callback_error');
   }
@@ -878,6 +950,7 @@ app.post('/api/bootstrap', rateLimit('bootstrap', AUTH_RATE_LIMIT_MAX, RATE_LIMI
     const adminPassword = requirePassword(req.body.adminPassword, 'adminPassword');
     db.prepare('INSERT INTO users(username, full_name, password_hash, is_admin, is_builtin_admin) VALUES (?, ?, ?, 1, 1)')
       .run('admin', 'Administrator', bcrypt.hashSync(adminPassword, 10));
+    logEvent('bootstrap_completed', { requestId: req.requestId, ip: clientIp(req) });
     res.json({ ok: true, username: 'admin' });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -888,8 +961,12 @@ app.post('/api/login', rateLimit('login', AUTH_RATE_LIMIT_MAX, RATE_LIMIT_WINDOW
   try {
     const payload = validateLoginPayload(req.body);
     const u = db.prepare('SELECT * FROM users WHERE username = ?').get(payload.username);
-    if (!u || !bcrypt.compareSync(payload.password, u.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!u || !bcrypt.compareSync(payload.password, u.password_hash)) {
+      logEvent('login_failed', { requestId: req.requestId, ip: clientIp(req), username: payload.username });
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
     const token = issueToken(u);
+    logEvent('login_succeeded', { requestId: req.requestId, ip: clientIp(req), userId: u.id, username: u.username });
     res.json({
       token,
       user: {
@@ -908,6 +985,7 @@ app.post('/api/login', rateLimit('login', AUTH_RATE_LIMIT_MAX, RATE_LIMIT_WINDOW
 
 app.post('/api/logout', auth, (req, res) => {
   db.prepare('UPDATE sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL').run(nowIso(), sha(req.authToken));
+  logEvent('logout', { requestId: req.requestId, userId: req.auth.userId, username: req.auth.username });
   res.json({ ok: true });
 });
 
@@ -978,6 +1056,7 @@ app.post('/api/users/:id/reset-password', rateLimit('reset-password', ADMIN_RATE
     db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(bcrypt.hashSync(newPlain, 10), id);
     revokeSessionsForUser(id);
+    logEvent('password_reset', { requestId: req.requestId, adminUserId: req.auth.userId, targetUserId: id });
     res.json({ ok: true, temporaryPassword: newPlain });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -999,15 +1078,20 @@ app.post('/api/me/change-password', auth, (req, res) => {
   }
 });
 
-app.get('/api/floors', (req, res) => res.json(db.prepare('SELECT * FROM floors ORDER BY id').all()));
+app.get('/api/floors', (req, res) => {
+  const rows = db.prepare('SELECT * FROM floors ORDER BY id').all().map((row) => ({
+    ...row,
+    image_path: floorImageValue(row)
+  }));
+  res.json(rows);
+});
 
 app.post('/api/floors', auth, requireAdmin, (req, res) => {
   try {
     const payload = validateFloorPayload(req.body);
-    let finalImagePath = payload.imagePath;
-    if (payload.imageData) finalImagePath = saveFloorImageFromData(payload.imageData, payload.imageName);
-    const out = db.prepare('INSERT INTO floors(name, image_path) VALUES (?, ?)').run(payload.name, finalImagePath);
-    res.json({ id: out.lastInsertRowid, imagePath: finalImagePath });
+    const finalImageData = payload.imageData ? normalizeFloorImageData(payload.imageData) : null;
+    const out = db.prepare('INSERT INTO floors(name, image_path, image_data) VALUES (?, NULL, ?)').run(payload.name, finalImageData);
+    res.json({ id: out.lastInsertRowid, imagePath: finalImageData });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -1019,10 +1103,11 @@ app.patch('/api/floors/:id', auth, requireAdmin, (req, res) => {
     const floor = db.prepare('SELECT * FROM floors WHERE id = ?').get(id);
     if (!floor) return res.status(404).json({ error: 'Floor not found' });
     const payload = validateFloorPayload(req.body, floor);
-    let imagePath = payload.imagePath ?? floor.image_path;
-    if (payload.imageData) imagePath = saveFloorImageFromData(payload.imageData, payload.imageName);
-    db.prepare('UPDATE floors SET name = ?, image_path = ? WHERE id = ?').run(payload.name, imagePath || null, id);
-    res.json({ ok: true, imagePath: imagePath || null });
+    let imageData = floor.image_data || localFloorImageToDataUrl(floor.image_path) || null;
+    if (payload.clearImage) imageData = null;
+    if (payload.imageData) imageData = normalizeFloorImageData(payload.imageData);
+    db.prepare('UPDATE floors SET name = ?, image_path = NULL, image_data = ? WHERE id = ?').run(payload.name, imageData, id);
+    res.json({ ok: true, imagePath: imageData });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -1193,9 +1278,11 @@ app.use((err, req, res, next) => {
   const errorId = newErrorId('API');
   const msg = String(err?.message || '');
   if (/database is locked/i.test(msg)) {
+    logEvent('api_error', { requestId: req.requestId, errorId, kind: 'SQLITE_LOCKED', path: req.originalUrl, method: req.method, message: msg });
     console.error(`[${errorId}] SQLITE_LOCKED`, err);
     return res.status(503).json({ error: 'Database is busy. Please retry in a moment.', errorId });
   }
+  logEvent('api_error', { requestId: req.requestId, errorId, kind: 'UNHANDLED', path: req.originalUrl, method: req.method, message: msg });
   console.error(`[${errorId}] UNHANDLED`, err);
   return res.status(500).json({ error: 'Unexpected server error. Please contact support and provide error id.', errorId });
 });

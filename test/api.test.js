@@ -6,10 +6,7 @@ const fs = require('node:fs');
 
 const repoRoot = path.resolve(__dirname, '..');
 const serverPath = path.join(repoRoot, 'src', 'server.js');
-
-function randomPort() {
-  return 35000 + Math.floor(Math.random() * 20000);
-}
+const tinyPngDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5lrLsAAAAASUVORK5CYII=';
 
 async function waitForHealth(baseUrl, timeoutMs = 10000) {
   const started = Date.now();
@@ -27,10 +24,9 @@ async function withServer(extraEnv, run) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parking-test-'));
   const previousCwd = process.cwd();
   const previousEnv = {};
-  const port = randomPort();
   const envPatch = {
-    PORT: String(port),
-    APP_BASE_URL: `http://127.0.0.1:${port}`,
+    PORT: '0',
+    APP_BASE_URL: 'http://127.0.0.1:0',
     ...extraEnv
   };
 
@@ -43,9 +39,14 @@ async function withServer(extraEnv, run) {
 
   delete require.cache[require.resolve(serverPath)];
   const mod = require(serverPath);
+  if (!mod.server.listening) {
+    await new Promise((resolve) => mod.server.once('listening', resolve));
+  }
+  const actualPort = mod.server.address().port;
+  const baseUrl = `http://127.0.0.1:${actualPort}`;
   try {
-    await waitForHealth(envPatch.APP_BASE_URL);
-    await run(envPatch.APP_BASE_URL);
+    await waitForHealth(baseUrl);
+    await run(baseUrl);
   } finally {
     await mod.closeServer();
     delete require.cache[require.resolve(serverPath)];
@@ -182,9 +183,14 @@ test('user validation, floor/space CRUD, and booking overlap rules work', async 
     const floor = await jsonRequest(baseUrl, '/api/floors', {
       method: 'POST',
       token,
-      body: { name: 'Main floor' }
+      body: { name: 'Main floor', imageData: tinyPngDataUrl }
     });
     assert.equal(floor.status, 200);
+    assert.match(floor.json.imagePath, /^data:image\/png;base64,/);
+
+    const floors = await jsonRequest(baseUrl, '/api/floors');
+    assert.equal(floors.status, 200);
+    assert.match(floors.json[0].image_path, /^data:image\/png;base64,/);
 
     const space = await jsonRequest(baseUrl, '/api/spaces', {
       method: 'POST',
