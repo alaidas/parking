@@ -304,7 +304,7 @@
   <div class="panel" id="bookingsSection" style="margin-top:14px;"><div class="title" id="bookingsTitle">Bookings</div><div class="row" style="max-width:340px; margin-top:8px;"><input id="bookingSearch" placeholder="Search booked by user" /></div><table><thead><tr><th>Floor</th><th>Spot</th><th>User</th><th>Start</th><th>End</th><th>Status</th><th>Created</th></tr></thead><tbody id="bookingRows"></tbody></table><div class="actions" id="bookingPager" style="justify-content:space-between; align-items:center;"></div></div>
 </div>
 
-<div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password</label><input id="bootstrapPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
+<div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password</label><input id="bootstrapPassword" type="password" /></div><div class="row" id="bootstrapTokenRow" style="display:none"><label class="muted">Bootstrap token</label><input id="bootstrapToken" type="password" placeholder="Install token" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
 
 <div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button class="btn-primary" id="loginMicrosoft" style="display:none">Continue with Microsoft</button><button id="loginClose">Close</button></div></div></div>
 
@@ -448,7 +448,7 @@
 </div></div>
 
 <script>
-const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, miniZoom:260, panX:0, panY:0, baseX:50, baseY:50, bookingPage:1, bookingPageSize:25 };
+const state = { token:'', me:null, ssoEnabled:false, ssoConfigured:false, bootstrapRequiresToken:false, floors:[], spaces:[], availability:[], bookings:[], users:[], selectedSpot:null, selectedFloorEditId:null, selectedUserEditId:null, selectedSpaceEditId:null, displayLayouts:{}, spaceMapX:50, spaceMapY:50, spaceMapZoom:260, miniZoom:260, panX:0, panY:0, baseX:50, baseY:50, bookingPage:1, bookingPageSize:25 };
 const AUTH_TOKEN_KEY = 'parking.auth.token';
 const $ = id => document.getElementById(id);
 const persistToken = (token) => {
@@ -961,11 +961,24 @@ async function doLogin() {
 
 async function checkBootstrap() {
   const health = await api('/api/health');
+  state.bootstrapRequiresToken = !!health.bootstrapRequiresToken;
+  $('bootstrapTokenRow').style.display = state.bootstrapRequiresToken ? 'grid' : 'none';
   if (health.needsBootstrap) $('bootstrapModal').style.display='flex';
 }
 
 async function createAdmin() {
-  try { await api('/api/bootstrap', { method:'POST', body: JSON.stringify({ adminPassword: $('bootstrapPassword').value })}); $('bootstrapModal').style.display='none'; uiAlert('Admin created. Login as admin.'); $('loginModal').style.display='flex'; }
+  try {
+    await api('/api/bootstrap', {
+      method:'POST',
+      body: JSON.stringify({
+        adminPassword: $('bootstrapPassword').value,
+        bootstrapToken: $('bootstrapToken').value
+      })
+    });
+    $('bootstrapModal').style.display='none';
+    uiAlert('Admin created. Login as admin.');
+    $('loginModal').style.display='flex';
+  }
   catch (e) { uiAlert(e.message); }
 }
 
@@ -1319,11 +1332,14 @@ async function createSpace() {
   ['loginUser','loginPassword'].forEach(id => $(id).addEventListener('keydown', (e) => {
     if (e.key === 'Enter') doLogin();
   }));
-  $('logoutBtn').onclick = async ()=>{ state.token=''; persistToken(''); state.me=null; state.spaces=[]; state.bookings=[]; state.availability=[]; state.selectedSpot=null; setAuthUI(); await refreshAll(); };
+  $('logoutBtn').onclick = async ()=>{
+    try { if (state.token) await api('/api/logout', { method:'POST' }); } catch {}
+    state.token=''; persistToken(''); state.me=null; state.spaces=[]; state.bookings=[]; state.availability=[]; state.selectedSpot=null; setAuthUI(); await refreshAll();
+  };
   $('bootstrapConfirm').onclick = createAdmin;
-  $('bootstrapPassword').addEventListener('keydown', (e) => {
+  ['bootstrapPassword','bootstrapToken'].forEach(id => $(id).addEventListener('keydown', (e) => {
     if (e.key === 'Enter') createAdmin();
-  });
+  }));
   $('openAdminPanel').onclick = async ()=>{ $('adminModal').style.display='flex'; switchAdminTab('users'); await loadAdminLists(); };
   document.querySelectorAll('.admin-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchAdminTab(btn.dataset.tab));
