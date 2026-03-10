@@ -108,6 +108,50 @@
       box-shadow: 0 12px 24px rgba(12,92,142,.28);
     }
 
+    .btn-microsoft {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #ffffff;
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: 1;
+      white-space: nowrap;
+      box-shadow: 0 10px 20px rgba(12,92,142,.24);
+    }
+
+    .btn-microsoft .ms-content {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .btn-microsoft:hover {
+      filter: brightness(1.03);
+      box-shadow: 0 12px 24px rgba(12,92,142,.28);
+    }
+
+    .btn-microsoft svg {
+      display: block;
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+    }
+
+    .btn-microsoft .ms-label {
+      display: inline-block;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
     .layout { display: grid; grid-template-columns: minmax(0, 70%) minmax(0, 30%); gap: 16px; }
     .layout > .panel { min-width: 0; min-height: 600px; }
     .panel { padding: 16px; }
@@ -157,6 +201,23 @@
     .map-mini-caption { font-size: 12px; color: var(--muted); padding: 6px 8px; border-top: 1px solid var(--line); background: #f8fbfd; }
 
     .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .login-actions {
+      flex-wrap: nowrap;
+      align-items: center;
+    }
+    .login-actions #loginConfirm,
+    .login-actions #loginClose {
+      flex: 0 0 auto;
+    }
+    .login-actions #loginConfirm,
+    .login-actions #loginMicrosoft {
+      height: 42px;
+    }
+    .login-actions #loginMicrosoft {
+      flex: 0 0 auto;
+      min-width: 0;
+      width: auto;
+    }
     table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; }
     th, td { padding: 10px; border-bottom: 1px solid #e1ebf1; text-align: left; }
     th { color: #27455f; font-weight: 700; background: #f7fafc; }
@@ -259,6 +320,9 @@
       .spot-label { font-size: 16px; }
 
       .actions button { width: 100%; }
+      .login-actions { flex-wrap: wrap; }
+      .login-actions button { width: 100%; }
+      .login-actions #loginMicrosoft { min-width: 0; width: 100%; }
 
       table { font-size: 12px; display: block; overflow-x: auto; white-space: nowrap; }
       th, td { padding: 8px; }
@@ -306,7 +370,7 @@
 
 <div class="overlay" id="bootstrapModal"><div class="modal" style="max-width:500px"><h3>First run: create admin password</h3><div class="row"><label class="muted">Admin password</label><input id="bootstrapPassword" type="password" /></div><div class="row" id="bootstrapTokenRow" style="display:none"><label class="muted">Bootstrap token</label><input id="bootstrapToken" type="password" placeholder="Install token" /></div><div class="actions"><button class="btn-primary" id="bootstrapConfirm">Create admin</button></div></div></div>
 
-<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions"><button class="btn-primary" id="loginConfirm">Log in</button><button class="btn-primary" id="loginMicrosoft" style="display:none">Continue with Microsoft</button><button id="loginClose">Close</button></div></div></div>
+<div class="overlay" id="loginModal"><div class="modal" style="max-width:500px"><h3>Login</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions login-actions"><button class="btn-primary" id="loginConfirm">Log in</button><button class="btn-microsoft" id="loginMicrosoft" style="display:none"><span class="ms-content"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="13" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="13" width="10" height="10" fill="#00a4ef"/><rect x="13" y="13" width="10" height="10" fill="#ffb900"/></svg><span class="ms-label">Sign in with Microsoft</span></span></button><button id="loginClose">Close</button></div></div></div>
 
 <div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div><div class="row"><label class="muted">Repeat new password</label><input id="newPasswordRepeat" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
 
