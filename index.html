@@ -22,6 +22,7 @@
     }
 
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body {
       margin: 0;
       font-family: "Inter", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
@@ -311,6 +312,7 @@
       .header { padding: 14px; border-radius: 14px; }
       .title { font-size: 16px; }
       .panel { padding: 12px; }
+      input, select, button { font-size: 16px; }
       .toolbar { padding: 10px; gap: 8px; }
       .toolbar > * { min-width: 0; }
       .toolbar select,
@@ -351,7 +353,6 @@
     <div class="header-actions">
       <button id="openLoginPanel">Login</button>
       <button id="openAdminPanel" style="display:none">Settings</button>
-      <button id="openChangePasswordPanel" style="display:none">Change password</button>
       <button id="logoutBtn" style="display:none">Logout</button>
       <span class="pill" id="currentUserLabel">User: guest</span>
     </div>
@@ -385,23 +386,36 @@
 
 <div class="overlay" id="loginModal"><div class="modal login-modal"><h3>Sign in</h3><div class="row"><label class="muted">User</label><input id="loginUser" /></div><div class="row"><label class="muted">Password</label><input id="loginPassword" type="password" /></div><div class="actions login-actions"><button class="btn-primary" id="loginConfirm">Log in</button><button class="btn-microsoft" id="loginMicrosoft" style="display:none"><span class="ms-content"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="13" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="13" width="10" height="10" fill="#00a4ef"/><rect x="13" y="13" width="10" height="10" fill="#ffb900"/></svg><span class="ms-label">Sign in with Microsoft</span></span></button></div></div></div>
 
-<div class="overlay" id="changePasswordModal"><div class="modal" style="max-width:500px"><h3>Change password</h3><div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div><div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div><div class="row"><label class="muted">Repeat new password</label><input id="newPasswordRepeat" type="password" /></div><div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button><button id="changePasswordClose">Close</button></div></div></div>
-
 <div class="overlay" id="bookingModal"><div class="modal" style="max-width:500px"><h3>Book spot <span id="modalSpot"></span></h3><div class="row"><label class="muted">Booked by user</label><select id="bookUser"></select></div><div class="row"><label class="muted">Start date</label><input id="startAt" type="date"/></div><div class="row" id="endAtRow" style="display:none"><label class="muted">End date</label><input id="endAt" type="date"/></div><div class="row" id="durationRow"><label class="muted">Period</label><select id="durationDays"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4">4 days</option><option value="5">5 days</option></select></div><div class="actions"><button class="btn-primary" id="saveBooking">Confirm booking</button><button id="cancelBooking">Cancel</button></div></div></div>
 
 <div class="overlay" id="releaseModal"><div class="modal" style="max-width:500px"><h3>Release booking</h3><div class="muted" id="releaseBookingInfo" style="margin-bottom:8px"></div><div id="releaseRangeWrap"><div class="row"><label class="muted">Release from</label><input id="releaseFrom" type="date"/></div><div class="row"><label class="muted">Release to</label><input id="releaseTo" type="date"/></div></div><div class="actions"><button class="btn-primary" id="confirmRelease">Confirm release</button><button id="cancelRelease">Cancel</button></div></div></div>
 
 <div class="overlay" id="adminModal"><div class="modal"><h3>Settings</h3>
   <div class="actions" style="margin-top:0; margin-bottom:10px;">
-    <button class="admin-tab-btn btn-primary" data-tab="users">Users</button>
-    <button class="admin-tab-btn" data-tab="floors">Floors</button>
-    <button class="admin-tab-btn" data-tab="spaces">Spaces</button>
-    <button class="admin-tab-btn" data-tab="integrations">Integrations</button>
+    <button class="admin-tab-btn btn-primary" data-tab="account">Account</button>
+    <button class="admin-tab-btn" data-tab="users" data-admin-only="1">Users</button>
+    <button class="admin-tab-btn" data-tab="floors" data-admin-only="1">Floors</button>
+    <button class="admin-tab-btn" data-tab="spaces" data-admin-only="1">Spaces</button>
+    <button class="admin-tab-btn" data-tab="integrations" data-admin-only="1">Integrations</button>
     <button id="adminClose" style="margin-left:auto">Close</button>
   </div>
   <div id="adminLoading" class="muted" style="display:none; margin-bottom:10px;">Loading admin data…</div>
 
-  <div class="admin-tab-pane" id="tab-users">
+  <div class="admin-tab-pane" id="tab-account">
+    <div class="admin-block"><b>Account</b>
+      <div id="accountPasswordBlock" style="max-width:500px; margin-top:10px;">
+        <div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div>
+        <div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div>
+        <div class="row"><label class="muted">Repeat new password</label><input id="newPasswordRepeat" type="password" /></div>
+        <div class="actions"><button class="btn-primary" id="changePasswordConfirm">Save</button></div>
+      </div>
+      <div id="accountSsoHint" class="muted" style="display:none; margin-top:10px; max-width:500px;">
+        This account signs in with Microsoft. Password changes are managed in Microsoft.
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-tab-pane" id="tab-users" style="display:none">
     <div class="admin-block"><b>Users</b>
       <div class="users-admin-grid">
         <div class="users-left-col">
@@ -605,8 +619,7 @@ function setAuthUI() {
   const isLoggedIn = !!state.me;
   $('currentUserLabel').textContent = `User: ${state.me ? (state.me.fullName || state.me.username) : 'guest'}`;
   $('openLoginPanel').style.display = isLoggedIn ? 'none' : 'inline-block';
-  $('openAdminPanel').style.display = state.me?.isAdmin ? 'inline-block' : 'none';
-  $('openChangePasswordPanel').style.display = (isLoggedIn && !state.me.authProvider) ? 'inline-block' : 'none';
+  $('openAdminPanel').style.display = isLoggedIn ? 'inline-block' : 'none';
   $('logoutBtn').style.display = isLoggedIn ? 'inline-block' : 'none';
   $('loginMicrosoft').style.display = state.ssoEnabled ? 'inline-block' : 'none';
   $('appShell').style.display = isLoggedIn ? 'block' : 'none';
@@ -1043,7 +1056,6 @@ async function changePassword() {
     $('oldPassword').value = '';
     $('newPassword').value = '';
     $('newPasswordRepeat').value = '';
-    $('changePasswordModal').style.display = 'none';
     await uiAlert('Password changed successfully', 'Success');
   } catch (e) {
     uiAlert(e.message);
@@ -1147,26 +1159,44 @@ function closeFloorEditor() {
   setFloorImagePreview('');
 }
 
+function syncSettingsTabsVisibility() {
+  const isAdmin = !!state.me?.isAdmin;
+  $('adminLoading').style.display = 'none';
+  document.querySelectorAll('.admin-tab-btn[data-admin-only]').forEach(btn => {
+    btn.style.display = isAdmin ? 'inline-block' : 'none';
+  });
+  ['users', 'floors', 'spaces', 'integrations'].forEach(name => {
+    const pane = $(`tab-${name}`);
+    if (pane && !isAdmin) pane.style.display = 'none';
+  });
+  const usesSso = !!state.me?.authProvider;
+  $('accountPasswordBlock').style.display = usesSso ? 'none' : 'block';
+  $('accountSsoHint').style.display = usesSso ? 'block' : 'none';
+}
+
 function switchAdminTab(tabName) {
-  const tabs = ['users', 'floors', 'spaces', 'integrations'];
+  const tabs = ['account', 'users', 'floors', 'spaces', 'integrations'];
+  const allowedTabs = state.me?.isAdmin ? tabs : ['account'];
+  const activeTab = allowedTabs.includes(tabName) ? tabName : 'account';
   tabs.forEach(name => {
     const pane = $(`tab-${name}`);
-    if (pane) pane.style.display = name === tabName ? 'block' : 'none';
+    if (pane) pane.style.display = (allowedTabs.includes(name) && name === activeTab) ? 'block' : 'none';
   });
   document.querySelectorAll('.admin-tab-btn').forEach(btn => {
-    const active = btn.dataset.tab === tabName;
+    const active = btn.dataset.tab === activeTab;
     btn.classList.toggle('active', active);
     btn.classList.toggle('btn-primary', active);
   });
-  if (tabName === 'floors') closeFloorEditor();
-  if (tabName === 'users') closeUserEditor();
-  if (tabName === 'spaces') {
+  if (activeTab === 'floors') closeFloorEditor();
+  if (activeTab === 'users') closeUserEditor();
+  if (activeTab === 'spaces') {
     closeSpaceEditor();
     loadSpacesList();
   }
 }
 
 async function loadAdminLists() {
+  if (!state.me?.isAdmin) return;
   $('adminLoading').style.display = 'block';
   try {
     const sso = await api('/api/admin/sso');
@@ -1443,8 +1473,6 @@ async function createSpace() {
   const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); $('viewDate').value = d.toISOString().slice(0,10);
 
   $('openLoginPanel').onclick = ()=> { setLoginLoading(false); $('loginModal').style.display='flex'; }; $('loginConfirm').onclick = doLogin; $('loginMicrosoft').onclick = startMicrosoftLogin;
-  $('openChangePasswordPanel').onclick = ()=> $('changePasswordModal').style.display='flex';
-  $('changePasswordClose').onclick = ()=> $('changePasswordModal').style.display='none';
   $('changePasswordConfirm').onclick = changePassword;
   ['oldPassword','newPassword','newPasswordRepeat'].forEach(id => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') changePassword(); }));
   $('messageOk').onclick = () => closeMessageModal(true);
@@ -1460,7 +1488,12 @@ async function createSpace() {
   ['bootstrapPassword','bootstrapToken'].forEach(id => $(id).addEventListener('keydown', (e) => {
     if (e.key === 'Enter') createAdmin();
   }));
-  $('openAdminPanel').onclick = async ()=>{ $('adminModal').style.display='flex'; switchAdminTab('users'); await loadAdminLists(); };
+  $('openAdminPanel').onclick = async ()=>{
+    $('adminModal').style.display='flex';
+    syncSettingsTabsVisibility();
+    switchAdminTab('account');
+    if (state.me?.isAdmin) await loadAdminLists();
+  };
   document.querySelectorAll('.admin-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchAdminTab(btn.dataset.tab));
   });
@@ -1517,13 +1550,12 @@ async function createSpace() {
   ['bookingModal','releaseModal'].forEach(id=>$(id).onclick=(e)=>{ if(e.target.id===id) $(id).style.display='none'; });
   $('bootstrapModal').onclick = () => {};
   $('loginModal').onclick = () => {};
-  $('changePasswordModal').onclick = () => {};
   $('adminModal').onclick = () => {};
   $('messageModal').onclick = () => {};
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if ($('messageModal').style.display === 'flex') { e.preventDefault(); closeMessageModal(false); return; }
-    if ($('bootstrapModal').style.display === 'flex' || $('loginModal').style.display === 'flex' || $('changePasswordModal').style.display === 'flex' || $('adminModal').style.display === 'flex') {
+    if ($('bootstrapModal').style.display === 'flex' || $('loginModal').style.display === 'flex' || $('adminModal').style.display === 'flex') {
       e.preventDefault();
       return;
     }
