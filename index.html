@@ -832,14 +832,24 @@ function renderDetails() {
 
 async function openBookingFromList(spaceId, startDate, endDate, floorId) {
   if (!state.me) return;
+  const currentViewDate = getViewDate();
+  const targetDate = (currentViewDate >= startDate && currentViewDate <= endDate) ? currentViewDate : startDate;
+  let shouldRefresh = false;
 
   if (Number(floorId) && Number($('floorSelect').value) !== Number(floorId)) {
     $('floorSelect').value = String(floorId);
+    shouldRefresh = true;
+  }
+
+  if ($('viewDate').value !== targetDate) {
+    $('viewDate').value = targetDate;
+    shouldRefresh = true;
+  }
+
+  if (shouldRefresh) {
     await refreshFloorData();
   }
 
-  // Keep current view date unchanged to avoid confusing historical color states
-  // when clicking completed/old bookings in the list.
   state.selectedSpot = Number(spaceId);
   render();
 }
