@@ -823,6 +823,8 @@ function renderDetails() {
   const s = spotAt();
   if (!s) { $('spotHint').textContent = 'Select a spot from the map'; return; }
   const f = currentFloorObj();
+  const today = new Date().toISOString().slice(0,10);
+  const canReleaseBooking = !!s.bookingEnd && s.bookingEnd >= today;
   $('spotHint').textContent = `${f?.name || ''} · Spot ${s.space_number}`;
   const canSeeBookingDetails = !!state.me && (state.me?.isAdmin || s.bookingOwnerId === state.me?.userId);
   $('details').innerHTML = `<div><b>Status:</b> ${s.isBooked?'Booked':'Free'}</div>${s.isBooked && canSeeBookingDetails?`<div><b>User:</b> ${esc(s.bookingUser)}</div><div><b>Start:</b> ${esc(fmtDate(s.bookingStart))}</div><div><b>End:</b> ${esc(fmtDate(s.bookingEnd))}</div>`:''}`;
@@ -840,7 +842,7 @@ function renderDetails() {
   if (state.me && !s.isBooked) {
     const b = document.createElement('button'); b.className='btn-primary'; b.textContent='Book this spot'; b.onclick=openBookingModal; $('actions').appendChild(b);
   }
-  if (state.me && s.isBooked && (state.me?.isAdmin || s.bookingOwnerId===state.me?.userId)) {
+  if (state.me && s.isBooked && canReleaseBooking && (state.me?.isAdmin || s.bookingOwnerId===state.me?.userId)) {
     const r = document.createElement('button'); r.textContent='Release'; r.onclick=openReleaseModal; $('actions').appendChild(r);
   }
 }
@@ -1014,6 +1016,8 @@ async function saveBooking() {
 function openReleaseModal() {
   const s = spotAt();
   if (!s || !s.isBooked) return;
+  const today = new Date().toISOString().slice(0,10);
+  if (s.bookingEnd && s.bookingEnd < today) return;
   const oneDay = s.bookingStart === s.bookingEnd;
   $('releaseBookingInfo').textContent = `Booking: ${fmtDate(s.bookingStart)} - ${fmtDate(s.bookingEnd)}${oneDay ? ' (1 day)' : ''}`;
   $('releaseFrom').value = s.bookingStart || getViewDate();
