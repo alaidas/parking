@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -34,6 +34,7 @@
     }
 
     .app { max-width: 1320px; margin: 28px auto; padding: 0 20px; }
+    #appShell { display: flex; flex-direction: column; }
 
     .header, .panel {
       background: linear-gradient(180deg, #ffffff 0%, var(--panel-soft) 100%);
@@ -309,7 +310,7 @@
 
     @media (max-width:768px) {
       .app { margin: 14px auto; padding: 0 10px; }
-      .header { padding: 14px; border-radius: 14px; }
+      .header { order: 10; padding: 14px; border-radius: 14px; margin-top: 14px; margin-bottom: 0; }
       .title { font-size: 16px; }
       .panel { padding: 12px; }
       input, select, button { font-size: 16px; }
@@ -349,7 +350,7 @@
 <div class="app">
   <div id="appShell">
   <div class="header">
-    <div><div class="title">Parking Booking Dashboard</div><div class="muted" id="floorStats">No floor selected</div></div>
+    <div><div class="title">Parking Booking Dashboard</div></div>
     <div class="header-actions">
       <button id="openLoginPanel">Login</button>
       <button id="openAdminPanel" style="display:none">Settings</button>
@@ -362,12 +363,11 @@
     <select id="floorSelect"></select>
     <label class="muted date-inline">View date <input id="viewDate" type="date" /></label>
     <label class="muted checkbox-inline"><input type="checkbox" id="onlyFree" /> Only free</label>
-    <button id="clearFilters">Clear filters</button>
   </div>
 
   <div class="layout">
     <div class="panel">
-      <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#f5f9fc"/><line x1="0" y1="130" x2="1240" y2="130" stroke="#cfe0ea" stroke-width="2" opacity="1"/><text x="25" y="75" class="lot-title" text-anchor="start">PARKING</text><text x="25" y="120" class="lot-title" text-anchor="start" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="#cfe0ea" stroke-width="2" opacity="1"/></svg></div>
+      <div class="map-wrap"><svg viewBox="0 0 1240 720"><rect x="0" y="0" width="1240" height="720" fill="#f5f9fc"/><line x1="0" y1="96" x2="1240" y2="96" stroke="#cfe0ea" stroke-width="2" opacity="1"/><text x="25" y="60" class="lot-title" text-anchor="start" id="lotTitleB">FLOOR</text><g id="spotLayer"></g><line x1="0" y1="458" x2="1240" y2="458" stroke="#cfe0ea" stroke-width="2" opacity="1"/></svg></div>
       <div class="chips"><span class="chip">🟢 Free</span><span class="chip">🔴 Booked</span><span class="chip">🟡 Ending soon</span></div>
     </div>
     <div class="panel" id="spaceDetailsPanel">
@@ -399,7 +399,7 @@
     <button class="admin-tab-btn" data-tab="integrations" data-admin-only="1">Integrations</button>
     <button id="adminClose" style="margin-left:auto">Close</button>
   </div>
-  <div id="adminLoading" class="muted" style="display:none; margin-bottom:10px;">Loading admin data…</div>
+  <div id="adminLoading" class="muted" style="display:none; margin-bottom:10px;">Loading admin dataâ€¦</div>
 
   <div class="admin-tab-pane" id="tab-account">
     <div class="admin-block"><b>Account</b>
@@ -622,7 +622,7 @@ function setAuthUI() {
   $('openAdminPanel').style.display = isLoggedIn ? 'inline-block' : 'none';
   $('logoutBtn').style.display = isLoggedIn ? 'inline-block' : 'none';
   $('loginMicrosoft').style.display = state.ssoEnabled ? 'inline-block' : 'none';
-  $('appShell').style.display = isLoggedIn ? 'block' : 'none';
+  $('appShell').style.display = isLoggedIn ? 'flex' : 'none';
   $('loginModal').style.display = isLoggedIn ? 'none' : 'flex';
 
   const bookingsTitle = $('bookingsTitle');
@@ -944,7 +944,6 @@ function renderTable() {
 
 function render() {
   if (!state.me) {
-    $('floorStats').textContent = 'Please log in';
     $('lotTitleB').textContent = 'FLOOR';
     $('spotLayer').innerHTML = '';
     $('spotHint').textContent = 'Log in to view parking spaces';
@@ -956,7 +955,6 @@ function render() {
     return;
   }
   const f = currentFloorObj();
-  $('floorStats').textContent = f ? `${f.name} · ${state.spaces.length} spaces` : 'No floor selected';
   const floorTitle = f ? f.name.toUpperCase() : 'FLOOR';
   $('lotTitleB').textContent = floorTitle;
   const dynamicSize = floorTitle.length > 18 ? 36 : floorTitle.length > 12 ? 42 : 46;
@@ -1541,7 +1539,6 @@ async function createSpace() {
   $('saveBooking').onclick = saveBooking; $('cancelBooking').onclick = ()=> $('bookingModal').style.display='none';
   $('confirmRelease').onclick = releaseBooking;
   $('cancelRelease').onclick = ()=> $('releaseModal').style.display='none';
-  $('clearFilters').onclick = ()=>{ $('onlyFree').checked=false; const d2=new Date(); d2.setMinutes(d2.getMinutes()-d2.getTimezoneOffset()); $('viewDate').value=d2.toISOString().slice(0,10); if(state.token) refreshFloorData().then(render); else render(); };
   $('floorSelect').addEventListener('change', async ()=>{ state.selectedSpot=null; await refreshFloorData(); render(); });
   ['viewDate','onlyFree'].forEach(id=>$(id).addEventListener('input', async ()=>{ if(state.token && (id==='viewDate')) await refreshFloorData(); render(); }));
   $('bookingSearch').addEventListener('input', () => { state.bookingPage = 1; renderTable(); });
@@ -1620,3 +1617,4 @@ async function createSpace() {
 </script>
 </body>
 </html>
+
