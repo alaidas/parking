@@ -221,6 +221,7 @@
     th { color: #27455f; font-weight: 700; background: #f7fafc; }
 
     .overlay { position: fixed; inset: 0; background: rgba(5,16,29,.42); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+    #loginModal { z-index: 30; }
     .modal { width: 100%; max-width: 740px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 16px 44px rgba(11,31,51,.2); }
     .login-modal {
       width: min(500px, calc(100vw - 32px));
@@ -354,7 +355,7 @@
     <div class="header-actions">
       <button id="openLoginPanel">Login</button>
       <button id="openAdminPanel" style="display:none">Settings</button>
-      <button id="logoutBtn" style="display:none">Logout</button>
+      <button id="logoutBtn" style="display:none">Sign out</button>
       <span class="pill" id="currentUserLabel">User: guest</span>
     </div>
   </div>
@@ -617,6 +618,7 @@ function dateAdd(date, days) {
 
 function setAuthUI() {
   const isLoggedIn = !!state.me;
+  if (!isLoggedIn) setLoginLoading(false);
   $('currentUserLabel').textContent = `User: ${state.me ? (state.me.fullName || state.me.username) : 'guest'}`;
   $('openLoginPanel').style.display = isLoggedIn ? 'none' : 'inline-block';
   $('openAdminPanel').style.display = isLoggedIn ? 'inline-block' : 'none';
