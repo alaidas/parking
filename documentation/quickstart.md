@@ -23,7 +23,7 @@ Open: http://localhost:3000
 - Pick floor + date.
 - Select spot.
 - Book / release based on your role.
-- Open **Admin Panel** for users/floors/spaces management.
+- Open **Settings** for users, floors, spaces, and integrations management.
 
 ## Notes
 - DB file: `data/parking.sqlite3`

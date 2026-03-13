@@ -350,7 +350,7 @@
     <div><div class="title">Parking Booking Dashboard</div><div class="muted" id="floorStats">No floor selected</div></div>
     <div class="header-actions">
       <button id="openLoginPanel">Login</button>
-      <button id="openAdminPanel" style="display:none">Admin Panel</button>
+      <button id="openAdminPanel" style="display:none">Settings</button>
       <button id="openChangePasswordPanel" style="display:none">Change password</button>
       <button id="logoutBtn" style="display:none">Logout</button>
       <span class="pill" id="currentUserLabel">User: guest</span>
@@ -391,12 +391,12 @@
 
 <div class="overlay" id="releaseModal"><div class="modal" style="max-width:500px"><h3>Release booking</h3><div class="muted" id="releaseBookingInfo" style="margin-bottom:8px"></div><div id="releaseRangeWrap"><div class="row"><label class="muted">Release from</label><input id="releaseFrom" type="date"/></div><div class="row"><label class="muted">Release to</label><input id="releaseTo" type="date"/></div></div><div class="actions"><button class="btn-primary" id="confirmRelease">Confirm release</button><button id="cancelRelease">Cancel</button></div></div></div>
 
-<div class="overlay" id="adminModal"><div class="modal"><h3>Admin Panel</h3>
+<div class="overlay" id="adminModal"><div class="modal"><h3>Settings</h3>
   <div class="actions" style="margin-top:0; margin-bottom:10px;">
     <button class="admin-tab-btn btn-primary" data-tab="users">Users</button>
     <button class="admin-tab-btn" data-tab="floors">Floors</button>
     <button class="admin-tab-btn" data-tab="spaces">Spaces</button>
-    <button class="admin-tab-btn" data-tab="settings">Settings</button>
+    <button class="admin-tab-btn" data-tab="integrations">Integrations</button>
     <button id="adminClose" style="margin-left:auto">Close</button>
   </div>
   <div id="adminLoading" class="muted" style="display:none; margin-bottom:10px;">Loading admin data…</div>
@@ -486,7 +486,7 @@
     </div>
   </div>
 
-  <div class="admin-tab-pane" id="tab-settings" style="display:none">
+  <div class="admin-tab-pane" id="tab-integrations" style="display:none">
     <div class="admin-block"><b>Settings · Microsoft SSO</b>
       <div class="row" style="max-width:560px; margin-top:10px;">
         <label class="muted">Tenant ID</label>
@@ -1148,7 +1148,7 @@ function closeFloorEditor() {
 }
 
 function switchAdminTab(tabName) {
-  const tabs = ['users', 'floors', 'spaces', 'settings'];
+  const tabs = ['users', 'floors', 'spaces', 'integrations'];
   tabs.forEach(name => {
     const pane = $(`tab-${name}`);
     if (pane) pane.style.display = name === tabName ? 'block' : 'none';

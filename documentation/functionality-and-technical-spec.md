@@ -20,14 +20,14 @@ Implemented:
 - Simple user can change only own password.
 - Built-in `admin` user is created on first run, username fixed, protected from delete/role change.
 - Optional Microsoft SSO login flow.
-- Admin can enable/disable Microsoft SSO from Admin panel.
+- Admin can enable/disable Microsoft SSO from Settings.
 - When SSO user logs in first time, user is auto-created from token claims.
 
 Frontend coverage:
 - Login modal (user/password + Microsoft SSO button when enabled)
 - Current user display near Login/Logout
-- Admin Panel with user create/delete/role toggle/password reset
-- Admin SSO toggle in Users tab
+- Settings with user create/delete/role toggle/password reset
+- Microsoft SSO controls in the Integrations tab
 
 ### 2) Floors and parking spaces
 Implemented:
@@ -39,8 +39,8 @@ Implemented:
 - Space visual fields are stored (`x,y,w,h,dir`) and mini defaults (`map_x,map_y,map_zoom`).
 
 Frontend coverage:
-- Admin Panel floor management
-- Admin Panel space creation with map coordinates/defaults
+- Settings floor management
+- Settings space creation with map coordinates/defaults
 - Floor map rendering based on DB spaces
 
 ### 3) Booking and releasing
