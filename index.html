@@ -403,7 +403,7 @@
   <div id="adminLoading" class="muted" style="display:none; margin-bottom:10px;">Loading admin dataâ€¦</div>
 
   <div class="admin-tab-pane" id="tab-account">
-    <div class="admin-block"><b>Account</b>
+    <div class="admin-block">
       <div id="accountPasswordBlock" style="max-width:500px; margin-top:10px;">
         <div class="row"><label class="muted">Old password</label><input id="oldPassword" type="password" /></div>
         <div class="row"><label class="muted">New password</label><input id="newPassword" type="password" /></div>
@@ -417,7 +417,7 @@
   </div>
 
   <div class="admin-tab-pane" id="tab-users" style="display:none">
-    <div class="admin-block"><b>Users</b>
+    <div class="admin-block"><b id="usersTitle">Users · 0</b>
       <div class="users-admin-grid">
         <div class="users-left-col">
           <div class="row" style="max-width:340px; margin:0 0 8px;"><input id="userSearch" placeholder="Filter by full name or username" /></div>
@@ -447,7 +447,7 @@
   </div>
 
   <div class="admin-tab-pane" id="tab-floors" style="display:none">
-    <div class="admin-block"><b>Floors</b>
+    <div class="admin-block"><b id="floorsTitle">Floors · 0</b>
       <div class="users-admin-grid">
         <div class="users-left-col">
           <div class="list" id="floorsList"></div>
@@ -472,12 +472,12 @@
   </div>
 
   <div class="admin-tab-pane" id="tab-spaces" style="display:none">
-    <div class="admin-block"><b>Spaces</b>
+    <div class="admin-block">
       <div class="users-admin-grid">
         <div class="users-left-col">
           <div class="row" style="max-width:320px; margin-bottom:10px;">
-            <label class="muted">Floor</label>
             <select id="spaceFloorFilter"></select>
+            <b id="spacesTitle">Spaces · 0</b>
           </div>
           <div class="list" id="spacesList"></div>
           <div class="actions"><button id="createNewSpaceBtn" class="btn-primary">Create new</button></div>
@@ -502,7 +502,7 @@
   </div>
 
   <div class="admin-tab-pane" id="tab-integrations" style="display:none">
-    <div class="admin-block"><b>Settings · Microsoft SSO</b>
+    <div class="admin-block"><b>Microsoft SSO</b>
       <div class="row" style="max-width:560px; margin-top:10px;">
         <label class="muted">Tenant ID</label>
         <input id="ssoTenantId" placeholder="common or your tenant id" />
@@ -1174,6 +1174,15 @@ function syncSettingsTabsVisibility() {
   $('accountSsoHint').style.display = usesSso ? 'block' : 'none';
 }
 
+function updateAdminCounts() {
+  const usersTitle = $('usersTitle');
+  const floorsTitle = $('floorsTitle');
+  const spacesTitle = $('spacesTitle');
+  if (usersTitle) usersTitle.textContent = `${state.users.length} users`;
+  if (floorsTitle) floorsTitle.textContent = `${state.floors.length} floors`;
+  if (spacesTitle) spacesTitle.textContent = `${state.spaces.length} spaces`;
+}
+
 function switchAdminTab(tabName) {
   const tabs = ['account', 'users', 'floors', 'spaces', 'integrations'];
   const allowedTabs = state.me?.isAdmin ? tabs : ['account'];
@@ -1212,6 +1221,7 @@ async function loadAdminLists() {
     state.users = await api('/api/users');
     const floors = await api('/api/floors');
     state.floors = floors;
+    updateAdminCounts();
     renderUsersList();
     $('floorsList').innerHTML = floors.map(f => `<div onclick="selectFloorForEdit(${f.id})" style="cursor:pointer;${(state.selectedFloorEditId===f.id && $('floorEditor').style.display !== 'none')?'background:#e8f4f8;':''}"><span class="item-label">${esc(f.name)}</span></div>`).join('') || '<div>No floors</div>';
 
@@ -1414,11 +1424,14 @@ function renderSpaceMapEditor() {
 async function loadSpacesList() {
   const floorId = Number($('spaceFloorFilter').value || 0);
   if (!floorId) {
+    state.spaces = [];
+    updateAdminCounts();
     $('spacesList').innerHTML = '<div>No floor selected</div>';
     return;
   }
   const spaces = await api(`/api/spaces?floorId=${floorId}`);
   state.spaces = spaces;
+  updateAdminCounts();
   $('spacesList').innerHTML = spaces.map(s => `<div onclick="selectSpaceForEdit(${s.id})" style="cursor:pointer;${state.selectedSpaceEditId===s.id?'background:#e8f4f8;':''}"><span class="item-label">${esc(s.space_number)}</span></div>`).join('') || '<div>No spaces</div>';
   renderSpaceMapEditor();
 }
